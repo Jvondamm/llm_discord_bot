@@ -1,5 +1,5 @@
 # Environment files for API keys
 *.env
 
-
+# Jetbrains info
 *.idea
