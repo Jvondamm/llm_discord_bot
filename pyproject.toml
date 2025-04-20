@@ -1,0 +1,36 @@
+[project]
+name = "llm_discord_bot"
+dynamic = ["version"]
+authors = [ { name="Joshua von Damm", email="jvondamm@gmail.com" } ]
+description = "Discord chatbot that utilizes a local LLM for processing with a learning RAG pipeline"
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "operating System :: OS Independent",
+]
+
+dependencies = [
+    "discord",
+    "dotenv",
+    "json"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
+    "ruff",
+    "uv"
+]
+
+[project.scripts]
+bot = "llm_dicsord_bot.__main__:main"
+
+[tool.ruff]
+line-length = 120
+exclude = [
+    "bot.env",
+    "config.json"
+]
+
+log_format = "%(asctime)s.%(msecs)%03d %(levelname)-8s %(name)-15s [%(filename)s:%(lineno)d] %(message)s"
+log_date_format = "%Y-%m-%d %H:%M:%S"

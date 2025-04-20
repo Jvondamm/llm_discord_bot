@@ -1,0 +1,5 @@
+# Environment files for API keys
+*.env
+
+
+*.idea
