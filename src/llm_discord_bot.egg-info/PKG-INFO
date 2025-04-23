@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: llm_discord_bot
+Version: 0.0.0
+Summary: Discord chatbot that utilizes a local LLM for processing with a learning RAG pipeline
+Author-email: Joshua von Damm <jvondamm@gmail.com>
+Classifier: Programming Language :: Python :: 3
+Classifier: operating System :: OS Independent
+Description-Content-Type: text/markdown
+Requires-Dist: discord
+Requires-Dist: dotenv
+Requires-Dist: json
+Requires-Dist: torch
+Requires-Dist: transformers
+Requires-Dist: dotenv
+Provides-Extra: dev
+Requires-Dist: pre-commit; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+Requires-Dist: uv; extra == "dev"
+
+TODO

@@ -1,0 +1,11 @@
+discord
+dotenv
+json
+torch
+transformers
+dotenv
+
+[dev]
+pre-commit
+ruff
+uv

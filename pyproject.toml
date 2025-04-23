@@ -10,16 +10,17 @@ classifiers = [
 ]
 
 dependencies = [
-    "discord",
-    "dotenv",
-    "json"
+    "discord >= 2.3.2",
+    "dotenv >= 0.9.9",
+    "torch >= 2.6.0",
+    "transformers >= 4.51.3",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pre-commit",
-    "ruff",
-    "uv"
+    "pre-commit >= 4.2.0",
+    "ruff >= 0.11.6",
+    "uv >= 0.6.16"
 ]
 
 [project.scripts]
