@@ -3,3 +3,6 @@
 
 # Jetbrains info
 *.idea
+
+# Ignore all cached pyc files
+__pycache__/
