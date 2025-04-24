@@ -14,6 +14,8 @@ dependencies = [
     "dotenv >= 0.9.9",
     "torch >= 2.6.0",
     "transformers >= 4.51.3",
+    "protobuf",
+    "sentencepiece"
 ]
 
 [project.optional-dependencies]
@@ -35,3 +37,5 @@ exclude = [
 
 log_format = "%(asctime)s.%(msecs)%03d %(levelname)-8s %(name)-15s [%(filename)s:%(lineno)d] %(message)s"
 log_date_format = "%Y-%m-%d %H:%M:%S"
+
+# pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128

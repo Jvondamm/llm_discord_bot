@@ -53,7 +53,7 @@ class Bot(commands.Bot):
         )
         self.load_config(config_file)
 
-    async def load_config(self, config_file):
+    def load_config(self, config_file):
         with open(config_file) as f:
             self.llm_config = json.load(f)
 
