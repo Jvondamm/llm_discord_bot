@@ -14,8 +14,11 @@ dependencies = [
     "dotenv >= 0.9.9",
     "torch >= 2.6.0",
     "transformers >= 4.51.3",
-    "protobuf",
-    "sentencepiece"
+#    "protobuf",
+#    "sentencepiece"
+    "accelerate >= 1.6.0",
+    "langchain >=  0.3.24",
+    "datasets >= 3.5.1"
 ]
 
 [project.optional-dependencies]

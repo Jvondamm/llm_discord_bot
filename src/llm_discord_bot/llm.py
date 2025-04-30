@@ -1,6 +1,6 @@
 import torch
 import logging
-from transformers import pipeline
+from transformers import pipeline, BitsAndBytesConfig
 
 logger = logging.getLogger("LLM")
 
@@ -11,7 +11,8 @@ class Llm:
             task="text-generation",
             model=self.model_id,
             model_kwargs={
-                "torch_dtype": torch.bfloat16
+                "torch_dtype": torch.bfloat16,
+                "quantization_config": BitsAndBytesConfig(load_in_8bit=True)
             },
             device='cuda:0'
         )
