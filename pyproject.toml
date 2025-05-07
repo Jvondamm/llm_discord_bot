@@ -17,8 +17,13 @@ dependencies = [
 #    "protobuf",
 #    "sentencepiece"
     "accelerate >= 1.6.0",
-    "langchain >=  0.3.24",
-    "datasets >= 3.5.1"
+#    "langchain >=  0.3.24",
+    "datasets >= 3.5.1",
+    "sentence-transformers >= 2.2.2",
+    "faiss-cpu >= 1.7.4",
+    "langchain-community >= 0.3.23",
+    "bitsandbytes >= 0.45.5",
+
 ]
 
 [project.optional-dependencies]
