@@ -1,20 +1,23 @@
 import logging
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from datasets import load_dataset
+import os
+
 import pandas as pd
 from tqdm.notebook import tqdm
-from langchain.docstore.document import Document as LangchainDocument
 from typing import List
 import torch
 from transformers import AutoTokenizer, pipeline, BitsAndBytesConfig, AutoModelForCausalLM
 # from ragatouille import RAGPretrainedModel
+from datasets import load_dataset
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.docstore.document import Document
 from langchain_community.vectorstores.utils import DistanceStrategy
 from langchain_community.vectorstores import FAISS
-from langchain_community.llms import HuggingFacePipeline
 from langchain_huggingface import HuggingFaceEmbeddings
 
+# region logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("LLM_RAG")
+# endregion
 
 # region constants
 MARKDOWN_SEPARATORS = [
@@ -28,19 +31,12 @@ MARKDOWN_SEPARATORS = [
     " ",
     "",
 ]
-# DEFAULT_DATASET_SRC = '../../db'
-# endregion
-
-pd.set_option("display.max_colwidth", None)
-ds = load_dataset(path="pszemraj/fineweb-1k_long", split="train")
-RAW_KNOWLEDGE_BASE = [LangchainDocument(page_content=doc["text"]) for doc in
-                      tqdm(ds)]
-
-
 PROMPT = [
     {
         "role": "system",
-        "content": """Using the information contained in the context,
+        "content": """{identity}
+
+        Using the information contained in the context,
 give a comprehensive answer to the question.
 Respond only to the question asked, response should be concise and relevant to the question.
 Provide the number of the source document when relevant.
@@ -53,10 +49,13 @@ If the answer cannot be deduced from the context, do not give an answer.""",
 ---
 Now here is the question you need to answer.
 
-Question: {question}""",
+Question: {query}""",
     },
 ]
+FAISS_LOCAL_DB = "../../db"
+# endregion
 
+pd.set_option("display.max_colwidth", None)
 
 
 # region classes
@@ -67,12 +66,39 @@ class LlmRag:
         embedding_model_name: str = "thenlper/gte-small",
         # rerank_model_name: str | None = "colbert-ir/colbertv2.0",
     ):
-        self.vector_db = self._build_vector_db(model_name=embedding_model_name)
+        self.embedding_model_name = embedding_model_name
+        self.embedding_model = self._initialize_embedding_model(embedding_model_name)
+        self.local_index_store = self._initialize_db(embedding_model=self.embedding_model)
         self.llm = self._initialize_llm(model_name=llm_model_name)
+        # self.vector_db = self._build_vector_db(model_name=embedding_model_name)
         # if rerank_model_name is not None:
         #     self.reranker = RAGPretrainedModel.from_pretrained(rerank_model_name)
         # else:
         self.reranker = None
+
+
+    @staticmethod
+    def _initialize_embedding_model(model_name):
+        logger.info(f"Loading embedding {model_name=}")
+        return HuggingFaceEmbeddings(
+            model_name=model_name,
+            multi_process=True,
+            model_kwargs={"device": "cuda"},
+            encode_kwargs={"normalize_embeddings": True},  # Set `True` for cosine similarity
+        )
+
+    @staticmethod
+    def _initialize_db(embedding_model: HuggingFaceEmbeddings):
+        index_name = "discord_llm_rag_index"
+        if os.path.exists(FAISS_LOCAL_DB + index_name + '.faiss'):
+            logger.info(f"Loading {FAISS_LOCAL_DB=}")
+            return FAISS.load_local(folder_path=FAISS_LOCAL_DB,
+                                    index_name=index_name,
+                                    embeddings=embedding_model,
+                                    allow_dangerous_deserialization=True)  # Ensures we trust the db source
+        else:
+            return None
+
 
     def _initialize_llm(self, model_name):
         logger.info("Initializing bitsandbytesconfig...")
@@ -103,9 +129,9 @@ class LlmRag:
     @staticmethod
     def split_documents(
             chunk_size: int,
-            knowledge_base: List[LangchainDocument],
+            loaded_dataset: List[Document],
             tokenizer_name: str
-    ) -> List[LangchainDocument]:
+    ) -> List[Document]:
         """
         Split documents into chunks of maximum size `chunk_size` tokens and return a list of documents.
         """
@@ -121,7 +147,7 @@ class LlmRag:
 
         docs_processed = []
         logger.info(f"Processing docs in knowledge base...")
-        for doc in knowledge_base:
+        for doc in loaded_dataset:
             docs_processed += text_splitter.split_documents([doc])
 
         # Remove duplicates
@@ -134,54 +160,58 @@ class LlmRag:
 
         return docs_processed_unique
 
-    def _build_vector_db(self, model_name):
+    def merge_dataset_to_db(self, huggingface_dataset: str = "pszemraj/fineweb-1k_long"):
+        logger.info(f"Loading dataset {huggingface_dataset=}")
+        ds = load_dataset(path=huggingface_dataset, split="train")
+        loaded_ds = [Document(page_content=doc["text"]) for doc in tqdm(ds)]
         docs_processed = self.split_documents(chunk_size=512,
-                             knowledge_base=RAW_KNOWLEDGE_BASE,
-                             tokenizer_name=model_name)
+                                              loaded_dataset=loaded_ds,
+                                              tokenizer_name=self.embedding_model_name)
 
-        logger.info(f"Initializing embeddings {model_name=}")
-        embedding_model = HuggingFaceEmbeddings(
-            model_name=model_name,
-            multi_process=True,
-            model_kwargs={"device": "cuda"},
-            encode_kwargs={"normalize_embeddings": True},  # Set `True` for cosine similarity
+        logger.info(f"Creating vector store of {huggingface_dataset=}")
+        new_index_store = FAISS.from_documents(
+            docs_processed, self.embedding_model, distance_strategy=DistanceStrategy.COSINE
         )
+        if self.local_index_store is not None:
+            self.local_index_store.merge_from(new_index_store)
+            self.local_index_store.save_local(FAISS_LOCAL_DB)
+        else:
+            new_index_store.save_local(FAISS_LOCAL_DB)
+        # self.local_db.load_local(FAISS_LOCAL_DB)
 
-        logger.info("Building vector store with FAISS...")
-        return FAISS.from_documents(
-            docs_processed, embedding_model, distance_strategy=DistanceStrategy.COSINE
-        )
-
-    def answer_with_rag(
+    def response(
         self,
-        question: str,
+        query: str,
+        identity: str,
         num_retrieved_docs: int = 30,
         num_docs_final: int = 5,
-    ) -> tuple[str, List[LangchainDocument]]:
-        # TODO add response from llm with identity - move chat template here?
+    ) -> tuple[str, List[Document]]:
         # Gather documents with retriever
-        logger.info(" Retrieving documents...")
-        relevant_docs = self.vector_db.similarity_search(query=question, k=num_retrieved_docs)
-        relevant_docs = [doc.page_content for doc in relevant_docs]  # Keep only the text
+        if self.local_index_store is not None:
+            logger.info("Retrieving documents...")
+            relevant_docs = self.local_index_store.similarity_search(query=query, k=num_retrieved_docs)
+            relevant_docs = [doc.page_content for doc in relevant_docs]  # Keep only the text
 
-        # Optionally rerank results
-        if self.reranker:
-            logger.info("Reranking documents...")
-            relevant_docs = self.reranker.rerank(question, relevant_docs, k=num_docs_final)
-            relevant_docs = [doc["content"] for doc in relevant_docs]
+            # Optionally rerank results
+            if self.reranker:
+                logger.info("Reranking documents...")
+                relevant_docs = self.reranker.rerank(query, relevant_docs, k=num_docs_final)
+                relevant_docs = [doc["content"] for doc in relevant_docs]
 
-        relevant_docs = relevant_docs[:num_docs_final]
+            relevant_docs = relevant_docs[:num_docs_final]
 
-        # Build the final prompt
-        context = "\nExtracted documents:\n"
-        context += "".join([f"Document {str(i)}:::\n" + doc for i, doc in enumerate(relevant_docs)])
+            # Build the final prompt
+            context = "\nExtracted documents:\n"
+            context += "".join([f"Document {str(i)}:::\n" + doc for i, doc in enumerate(relevant_docs)])
+        else:
+            context = ""
+            relevant_docs = None
 
-        final_prompt = self.rag_prompt.format(question=question, context=context)
+        final_prompt = self.rag_prompt.format(identity=identity, query=query, context=context)
 
         # Redact an answer
         logger.info("Generating answer...")
         answer = self.llm(final_prompt)[0]["generated_text"]
 
         return answer, relevant_docs
-
     # endregion

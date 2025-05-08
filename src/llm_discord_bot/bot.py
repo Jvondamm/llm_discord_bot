@@ -14,7 +14,7 @@ import logging
 logger = logging.getLogger("BOT")
 
 load_dotenv()
-intents = Intents.default()
+intents = Intents.all()
 
 
 def remove_id(text):
@@ -76,10 +76,15 @@ class Bot(commands.Bot):
             async with message.channel.typing():
                 prompt = format_prompt(self.llm_config["question_prompt"], message.author.name, remove_id(message.content),
                                        history_text)
-                bot_response = filter_mentions(self.llm.response(prompt, self.llm_config["identity"]))
-                message_chunks = split_message(bot_response)
+                bot_response, relevant_docs = self.llm.response(prompt, self.llm_config["identity"])
+                filtered_bot_response = filter_mentions(bot_response)
+                message_chunks = split_message(filtered_bot_response)
                 for chunk in message_chunks:
                     await message.channel.send(chunk)
+                if relevant_docs:
+                    await message.channel.send("Sources:\n")
+                    for chunk in split_message(relevant_docs):
+                        await message.channel.send(chunk)
 
         # Never reply to yourself
         if message.author == self.user:
