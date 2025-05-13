@@ -4,7 +4,7 @@ import os
 import json
 from platform import python_version, system, release
 
-from discord import Intents, Message, Embed
+from discord import Intents, Message, Embed, Object
 from discord import __version__ as __discord_version__
 from discord.ext import commands
 from discord.ext.commands import Context
@@ -12,33 +12,13 @@ from dotenv import load_dotenv
 
 import logging
 
+from src.utils import format_prompt, filter_mentions, split_message, remove_id
+
 logger = logging.getLogger("BOT")
 
 load_dotenv()
-intents = Intents.all()
-
-
-def remove_id(text):
-    """Removes discord IDs from strings"""
-    return re.sub(r'<@\d+>', '', text)
-
-def split_message(message):
-    """Split messages into 2000 character chunks (discord's message limit)"""
-    return [message[i:i + 2000] for i in range(0, len(message), 2000)]
-
-
-def format_prompt(prompt, user, question, history):
-    formatted_prompt = prompt.replace("{user}", user)
-    formatted_prompt = formatted_prompt.replace("{question}", question)
-    formatted_prompt = formatted_prompt.replace("{history}", history)
-    return formatted_prompt
-
-
-def filter_mentions(text):
-    """Remove any broadcasts"""
-    pattern = r'[@]?(\b(here|everyone|channel)\b)'
-    filtered_text = re.sub(pattern, '', text)
-    return filtered_text
+intents = Intents.default()
+intents.message_content = True
 
 
 class Bot(commands.Bot):
@@ -46,9 +26,10 @@ class Bot(commands.Bot):
         self.prefix: str = os.getenv("DISCORD_PREFIX")
         self.llm = llm
         self.llm_config: json = None
+        self.guild = Object(id=os.getenv("DISCORD_GUILD_ID"))
 
         super().__init__(
-            command_prefix=commands.when_mentioned_or(self.prefix),
+            command_prefix="!",
             intents=intents,
             help_command=None,
         )
@@ -85,6 +66,12 @@ class Bot(commands.Bot):
         logger.info(
             f"Running on: {system()} {release()} ({os.name})"
         )
+        await self.load_cogs()
+        try:
+            synced = await self.tree.sync(guild=self.guild)
+            logger.info(f"Synced {len(synced)} commands to guild {self.guild.id}")
+        except Exception as e:
+            logger.error(f"Error syncing commands: {e}")
 
     async def on_message(self, message: Message):
         """Triggers on any message received to the server (guild)"""
@@ -101,8 +88,9 @@ class Bot(commands.Bot):
                     await message.channel.send(chunk)
                 if relevant_docs:
                     await message.channel.send("Sources:\n")
-                    for chunk in split_message(relevant_docs):
-                        await message.channel.send(chunk)
+                    for doc in relevant_docs:
+                        for chunk in split_message(doc):
+                            await message.channel.send(chunk)
 
         # Never reply to yourself
         if message.author == self.user:

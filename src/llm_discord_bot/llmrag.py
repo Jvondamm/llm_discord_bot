@@ -2,6 +2,7 @@ import logging
 import os
 
 import pandas as pd
+from dotenv import load_dotenv
 from tqdm.notebook import tqdm
 from typing import List
 import torch
@@ -31,7 +32,7 @@ MARKDOWN_SEPARATORS = [
     " ",
     "",
 ]
-PROMPT = [
+RAG_PROMPT = [
     {
         "role": "system",
         "content": """{identity}
@@ -52,10 +53,25 @@ Now here is the question you need to answer.
 Question: {query}""",
     },
 ]
+PROMPT = [
+    {
+        "role": "system",
+        "content": """{identity}
+        
+        Give a comprehensive answer to the question. 
+        Respond only to the question asked, response should be concise and relevant to the question.""",
+    },
+    {
+        "role": "user",
+        "content":  """Question: {query}""",
+    }
+]
+
 FAISS_LOCAL_DB = "../../db"
 # endregion
 
 pd.set_option("display.max_colwidth", None)
+load_dotenv()
 
 
 # region classes
@@ -75,6 +91,7 @@ class LlmRag:
         #     self.reranker = RAGPretrainedModel.from_pretrained(rerank_model_name)
         # else:
         self.reranker = None
+        # self.merge_dataset_to_db()
 
 
     @staticmethod
@@ -89,7 +106,7 @@ class LlmRag:
 
     @staticmethod
     def _initialize_db(embedding_model: HuggingFaceEmbeddings):
-        index_name = "discord_llm_rag_index"
+        index_name = os.getenv("INDEX_NAME")
         if os.path.exists(FAISS_LOCAL_DB + index_name + '.faiss'):
             logger.info(f"Loading {FAISS_LOCAL_DB=}")
             return FAISS.load_local(folder_path=FAISS_LOCAL_DB,
@@ -113,7 +130,8 @@ class LlmRag:
         model = AutoModelForCausalLM.from_pretrained(model_name, quantization_config=bnb_config)
         logger.info(f"Loading tokenizer from {model_name=}")
         tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.rag_prompt = tokenizer.apply_chat_template(PROMPT, tokenize=False, add_generation_prompt=True)
+        self.rag_prompt = tokenizer.apply_chat_template(RAG_PROMPT, tokenize=False, add_generation_prompt=True)
+        self.prompt = tokenizer.apply_chat_template(PROMPT, tokenize=False, add_generation_prompt=True)
 
         return pipeline(
             task="text-generation",
@@ -147,8 +165,9 @@ class LlmRag:
 
         docs_processed = []
         logger.info(f"Processing docs in knowledge base...")
-        for doc in loaded_dataset:
-            docs_processed += text_splitter.split_documents([doc])
+        # for doc in tqdm(loaded_dataset):
+        #     docs_processed += text_splitter.split_documents([doc])
+        docs_processed = text_splitter.split_documents(loaded_dataset)
 
         # Remove duplicates
         unique_texts = {}
@@ -162,8 +181,8 @@ class LlmRag:
 
     def merge_dataset_to_db(self, huggingface_dataset: str = "pszemraj/fineweb-1k_long"):
         logger.info(f"Loading dataset {huggingface_dataset=}")
-        ds = load_dataset(path=huggingface_dataset, split="train")
-        loaded_ds = [Document(page_content=doc["text"]) for doc in tqdm(ds)]
+        ds = load_dataset(path=huggingface_dataset, split="train", num_proc=8)
+        loaded_ds = [Document(page_content=doc["text"]) for doc in ds]
         docs_processed = self.split_documents(chunk_size=512,
                                               loaded_dataset=loaded_ds,
                                               tokenizer_name=self.embedding_model_name)
@@ -176,7 +195,8 @@ class LlmRag:
             self.local_index_store.merge_from(new_index_store)
             self.local_index_store.save_local(FAISS_LOCAL_DB)
         else:
-            new_index_store.save_local(FAISS_LOCAL_DB)
+            new_index_store.save_local(FAISS_LOCAL_DB, index_name=os.getenv("INDEX_NAME"))
+            self.local_index_store = new_index_store
         # self.local_db.load_local(FAISS_LOCAL_DB)
 
     def response(
@@ -185,9 +205,12 @@ class LlmRag:
         identity: str,
         num_retrieved_docs: int = 30,
         num_docs_final: int = 5,
+        rag: bool = False
     ) -> tuple[str, List[Document]]:
-        # Gather documents with retriever
-        if self.local_index_store is not None:
+        if rag:
+            if self.local_index_store is None:
+                logger.error("Did not provide any datasets to initialize local index")
+                return "No local index store found", [Document("")]
             logger.info("Retrieving documents...")
             relevant_docs = self.local_index_store.similarity_search(query=query, k=num_retrieved_docs)
             relevant_docs = [doc.page_content for doc in relevant_docs]  # Keep only the text
@@ -203,15 +226,15 @@ class LlmRag:
             # Build the final prompt
             context = "\nExtracted documents:\n"
             context += "".join([f"Document {str(i)}:::\n" + doc for i, doc in enumerate(relevant_docs)])
-        else:
-            context = ""
-            relevant_docs = None
 
-        final_prompt = self.rag_prompt.format(identity=identity, query=query, context=context)
+            prompt = self.rag_prompt.format(identity=identity, query=query, context=context)
+        else:
+            prompt = self.prompt.format(identity=identity, query=query)
+            relevant_docs = None
 
         # Redact an answer
         logger.info("Generating answer...")
-        answer = self.llm(final_prompt)[0]["generated_text"]
+        answer = self.llm(prompt)[0]["generated_text"]
 
         return answer, relevant_docs
     # endregion
