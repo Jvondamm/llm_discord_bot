@@ -6,7 +6,7 @@ from discord.ext import commands
 from discord.ext.commands import Context
 from discord import app_commands, Embed, Object
 
-from src.utils import filter_mentions, split_message
+from src.llm_discord_bot.utils import filter_mentions, split_message
 
 load_dotenv()
 
@@ -34,27 +34,19 @@ class Dataset(commands.Cog, name="llm"):
         await context.send(embed=Embed(description=f"Finished Loading {dataset=} in {time.time() - t_start} seconds", color=0xD75BF4))
 
     @commands.hybrid_command(
-        name="ragchat",
-        description="Chat with the Llm using RAG",
+        name="rag",
+        description="Enable/Disable RAG",
     )
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
-    async def rag_chat(self, context: Context, query: str) -> None:
+    async def toggle_rag(self, context: Context) -> None:
         """
-        Chat with the Llm using RAG
+        Enable/Disable RAG
 
         :param context: command context
-        :param query: user query
         """
-        await context.send(embed=Embed(description="Generating response..."))
-        response, relevant_docs = await asyncio.to_thread(self.bot.llm.response, query=query, identity=self.bot.llm_config["identity"], rag=True)
-        filtered_bot_response = filter_mentions(response)
-        for chunk in split_message(filtered_bot_response):
-            await context.send(chunk)
-        if relevant_docs:
-            await context.send("Sources:\n")
-            for doc in relevant_docs:
-                for chunk in split_message(doc.page_content):
-                    await context.send(chunk)
+        self.bot.rag = not self.bot.rag
+        await context.send(embed=Embed(description=f"{'Enabled' if self.bot.rag else 'Disabled'} rag"))
+
 
     # TODO add clearing local index - list what is currently there and size of documents
 

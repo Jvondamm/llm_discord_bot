@@ -1,4 +1,4 @@
-import re
+import asyncio
 import random
 import os
 import json
@@ -12,7 +12,10 @@ from dotenv import load_dotenv
 
 import logging
 
-from src.utils import format_prompt, filter_mentions, split_message, remove_id
+from langchain_core.documents import Document
+from transformers import pipeline
+
+from src.llm_discord_bot.utils import format_prompt, filter_mentions, split_message, remove_id
 
 logger = logging.getLogger("BOT")
 
@@ -24,9 +27,10 @@ intents.message_content = True
 class Bot(commands.Bot):
     def __init__(self, llm, config_file):
         self.prefix: str = os.getenv("DISCORD_PREFIX")
-        self.llm = llm
+        self.rag: bool = False
+        self.llm: pipeline = llm
         self.llm_config: json = None
-        self.guild = Object(id=os.getenv("DISCORD_GUILD_ID"))
+        self.guild: Object = Object(id=os.getenv("DISCORD_GUILD_ID"))
 
         super().__init__(
             command_prefix="!",
@@ -42,7 +46,7 @@ class Bot(commands.Bot):
 
     async def load_cogs(self) -> None:
         """
-        The code in this function is executed whenever the bot will start.
+        executes on bot start, load all cogs as extensions within cogs/ dir
         """
         for file in os.listdir(f"{os.path.realpath(os.path.dirname(__file__))}/cogs"):
             if file.endswith(".py"):
@@ -58,7 +62,7 @@ class Bot(commands.Bot):
 
     async def setup_hook(self) -> None:
         """
-        Logon message
+        loads cogs and syncs commands
         """
         logger.info(f"Logged in as {self.user.name}")
         logger.info(f"discord.py API version: {__discord_version__}")
@@ -74,23 +78,34 @@ class Bot(commands.Bot):
             logger.error(f"Error syncing commands: {e}")
 
     async def on_message(self, message: Message):
-        """Triggers on any message received to the server (guild)"""
+        """
+        triggers on any message received to the guild
+        """
 
         async def respond(message, history_text):
-            """The response logic"""
             async with message.channel.typing():
                 prompt = format_prompt(self.llm_config["question_prompt"], message.author.name, remove_id(message.content),
                                        history_text)
-                bot_response, relevant_docs = self.llm.response(prompt, self.llm_config["identity"])
+                bot_response, docs = await asyncio.to_thread(self.llm.response, query=prompt, identity=self.llm_config["identity"], rag=self.rag)
                 filtered_bot_response = filter_mentions(bot_response)
+                if docs and self.rag:
+                    filtered_bot_response += "\n\nSources:\n"
+                    doc_num = 0
+                    for doc in docs:
+                        data = None
+                        if isinstance(doc, Document):
+                            data = doc.page_content
+                        elif isinstance(doc, str):
+                            data = doc
+                        else:
+                            logger.error(f"Unknown {doc=}, skipping this source...")
+                        if data:
+                            filtered_bot_response += f"{doc_num}. {data}\n"
+                            doc_num += 1
+
                 message_chunks = split_message(filtered_bot_response)
                 for chunk in message_chunks:
                     await message.channel.send(chunk)
-                if relevant_docs:
-                    await message.channel.send("Sources:\n")
-                    for doc in relevant_docs:
-                        for chunk in split_message(doc):
-                            await message.channel.send(chunk)
 
         # Never reply to yourself
         if message.author == self.user:
@@ -120,7 +135,7 @@ class Bot(commands.Bot):
         """
         The code in this event is executed every time a normal command has been *successfully* executed.
 
-        :param context: The context of the command that has been executed.
+        :param context: command context
         """
         full_command_name = context.command.qualified_name
         split = full_command_name.split(" ")
