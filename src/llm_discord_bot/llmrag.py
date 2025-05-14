@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -68,6 +69,7 @@ PROMPT = [
 ]
 
 FAISS_LOCAL_DB = "../../db"
+FAISS_INDEX = "../../datasets.json"
 # endregion
 
 pd.set_option("display.max_colwidth", None)
@@ -86,12 +88,10 @@ class LlmRag:
         self.embedding_model = self._initialize_embedding_model(embedding_model_name)
         self.local_index_store = self._initialize_db(embedding_model=self.embedding_model)
         self.llm = self._initialize_llm(model_name=llm_model_name)
-        # self.vector_db = self._build_vector_db(model_name=embedding_model_name)
         # if rerank_model_name is not None:
         #     self.reranker = RAGPretrainedModel.from_pretrained(rerank_model_name)
         # else:
         self.reranker = None
-        # self.merge_dataset_to_db()
 
 
     @staticmethod
@@ -101,20 +101,21 @@ class LlmRag:
             model_name=model_name,
             multi_process=True,
             model_kwargs={"device": "cuda"},
-            encode_kwargs={"normalize_embeddings": True},  # Set `True` for cosine similarity
+            encode_kwargs={"normalize_embeddings": True}
         )
 
     @staticmethod
     def _initialize_db(embedding_model: HuggingFaceEmbeddings):
         index_name = os.getenv("INDEX_NAME")
-        if os.path.exists(FAISS_LOCAL_DB + index_name + '.faiss'):
+        if os.path.exists(FAISS_LOCAL_DB + '/' + index_name + '.faiss'):
             logger.info(f"Loading {FAISS_LOCAL_DB=}")
-            return FAISS.load_local(folder_path=FAISS_LOCAL_DB,
+            local_index = FAISS.load_local(folder_path=FAISS_LOCAL_DB,
                                     index_name=index_name,
                                     embeddings=embedding_model,
                                     allow_dangerous_deserialization=True)  # Ensures we trust the db source
         else:
-            return None
+            local_index = None
+        if os.path.exists()
 
 
     def _initialize_llm(self, model_name):
@@ -163,10 +164,7 @@ class LlmRag:
             separators=MARKDOWN_SEPARATORS,
         )
 
-        docs_processed = []
         logger.info(f"Processing docs in knowledge base...")
-        # for doc in tqdm(loaded_dataset):
-        #     docs_processed += text_splitter.split_documents([doc])
         docs_processed = text_splitter.split_documents(loaded_dataset)
 
         # Remove duplicates
@@ -179,9 +177,12 @@ class LlmRag:
 
         return docs_processed_unique
 
-    def merge_dataset_to_db(self, huggingface_dataset: str = "pszemraj/fineweb-1k_long"):
+    def merge_dataset_to_db(self,
+                            huggingface_dataset: str,
+                            split: str,):
+                            # subset: str):
         logger.info(f"Loading dataset {huggingface_dataset=}")
-        ds = load_dataset(path=huggingface_dataset, split="train", num_proc=8)
+        ds = load_dataset(path=huggingface_dataset, split=split, num_proc=8)
         loaded_ds = [Document(page_content=doc["text"]) for doc in ds]
         docs_processed = self.split_documents(chunk_size=512,
                                               loaded_dataset=loaded_ds,
@@ -197,7 +198,19 @@ class LlmRag:
         else:
             new_index_store.save_local(FAISS_LOCAL_DB, index_name=os.getenv("INDEX_NAME"))
             self.local_index_store = new_index_store
-        # self.local_db.load_local(FAISS_LOCAL_DB)
+
+
+    def drop_database(self):
+        for filename in os.listdir(FAISS_LOCAL_DB):
+            file_path = os.path.join(FAISS_LOCAL_DB, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(f"Failed to delete {file_path}. Reason: {e}")
+        self.local_index_store = None
 
     def response(
         self,
