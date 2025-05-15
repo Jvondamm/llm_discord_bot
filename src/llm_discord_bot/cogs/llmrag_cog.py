@@ -39,20 +39,21 @@ class Dataset(commands.Cog, name="llm"):
     async def add_dataset(self,
                           context: Context,
                           dataset: str,
-                          split: str = "train",
-                          subset: str = "") -> None:
+                          split: str = "train") -> None:
         """
         Add a HuggingFace Dataset to the bot's database. Ensure you trust the dataset first!
 
         :param context: command context
         :param dataset: HF dataset link to load and store
         :param split: HF dataset split, defaults to 'train'
-        :param subset: HF dataset subset, sometimes not present in a dataset and defaults to ''
         """
-        await context.send(embed=Embed(description=f"Loading {dataset=} on {split=}{' with subset=' if subset != "" else ""}", color=0xD75BF4))
-        t_start = time.time()
-        await asyncio.to_thread(self.bot.llm.merge_dataset_to_db, huggingface_dataset=dataset, split=split)
-        await context.send(embed=Embed(description=f"Finished Loading {dataset=} in {round(time.time() - t_start, 1)} seconds", color=0xD75BF4))
+        if self.bot.llm.check_dataset_unique(dataset):
+            await context.send(embed=Embed(description=f"Loading {dataset=} on {split=}", color=0xD75BF4))
+            t_start = time.time()
+            await asyncio.to_thread(self.bot.llm.merge_dataset_to_db, huggingface_dataset=dataset, split=split)
+            await context.send(embed=Embed(description=f"Finished Loading {dataset=} in {round(time.time() - t_start, 1)} seconds", color=0xD75BF4))
+        else:
+            await context.send(embed=Embed(description=f"{dataset=} already exists in the database"))
 
     @commands.hybrid_command(
         name="rag",
@@ -87,14 +88,24 @@ class Dataset(commands.Cog, name="llm"):
         await message.delete()
 
         if view.value is None:
-            await context.send("Timed out.")
+            await context.send(embed=Embed(description="Timed out."))
         elif view.value:
-            await context.send("Confirmed, wiping database")
+            await context.send(embed=Embed(description="Confirmed, wiping database"))
             await asyncio.to_thread(self.bot.llm.drop_database)
-            await context.send("Wiped database")
         else:
-            await context.send("Cancelled")
+            await context.send(embed=Embed(description="Cancelled"))
 
+
+    @commands.hybrid_command(
+        name="database_size",
+        description="Get the current size of the database",
+    )
+    @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
+    async def get_database_size(self, context: Context) -> None:
+        if self.bot.llm.database:
+            pass
+        else:
+            await context.send()
 
 async def setup(bot) -> None:
     await bot.add_cog(Dataset(bot))

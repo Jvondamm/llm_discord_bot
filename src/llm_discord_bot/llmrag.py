@@ -1,7 +1,8 @@
 import logging
 import os
 import shutil
-
+import json
+from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
 from tqdm.notebook import tqdm
@@ -68,8 +69,8 @@ PROMPT = [
     }
 ]
 
-FAISS_LOCAL_DB = "../../db"
-FAISS_INDEX = "../../datasets.json"
+FAISS_LOCAL_DB = Path(os.getenv("database_abs_path")).mkdir(parents=True, exist_ok=True)
+FAISS_DATASETS_LIST = FAISS_LOCAL_DB / Path("datasets_list.json")
 # endregion
 
 pd.set_option("display.max_colwidth", None)
@@ -82,11 +83,13 @@ class LlmRag:
         self,
         llm_model_name: str = "meta-llama/Llama-3.2-3B-Instruct",
         embedding_model_name: str = "thenlper/gte-small",
+        datasets_name = 'datasets.json',
         # rerank_model_name: str | None = "colbert-ir/colbertv2.0",
     ):
+        self.datasets_path = Path(datasets_name)
         self.embedding_model_name = embedding_model_name
         self.embedding_model = self._initialize_embedding_model(embedding_model_name)
-        self.local_index_store = self._initialize_db(embedding_model=self.embedding_model)
+        self.local_index_store, self.datasets = self._initialize_db(embedding_model=self.embedding_model)
         self.llm = self._initialize_llm(model_name=llm_model_name)
         # if rerank_model_name is not None:
         #     self.reranker = RAGPretrainedModel.from_pretrained(rerank_model_name)
@@ -104,18 +107,24 @@ class LlmRag:
             encode_kwargs={"normalize_embeddings": True}
         )
 
-    @staticmethod
-    def _initialize_db(embedding_model: HuggingFaceEmbeddings):
+    def _initialize_db(self, embedding_model: HuggingFaceEmbeddings) -> (FAISS, dict[str]):
+        database_abs_path = Path(os.getenv("DATABASE_ABS_PATH"))
+        database_abs_path.mkdir(parents=True, exist_ok=True)
         index_name = os.getenv("INDEX_NAME")
-        if os.path.exists(FAISS_LOCAL_DB + '/' + index_name + '.faiss'):
-            logger.info(f"Loading {FAISS_LOCAL_DB=}")
-            local_index = FAISS.load_local(folder_path=FAISS_LOCAL_DB,
+        index_path = database_abs_path / Path(index_name + '.faiss')
+        local_index, datasets = None, None
+        if os.path.exists(index_path):
+            logger.info(f"Loading {index_path=}")
+            local_index = FAISS.load_local(folder_path=str(database_abs_path),
                                     index_name=index_name,
                                     embeddings=embedding_model,
                                     allow_dangerous_deserialization=True)  # Ensures we trust the db source
-        else:
-            local_index = None
-        if os.path.exists()
+        if os.path.exists(database_abs_path / self.datasets_path):  # list of datasets in the db
+            with open(database_abs_path / self.datasets_path, 'r') as f:
+                datasets = json.load(f)
+        if local_index is not None and datasets is None:
+            logger.warning(f"Unknown datasets in the database, continuing...")
+        return local_index, datasets
 
 
     def _initialize_llm(self, model_name):
@@ -177,10 +186,15 @@ class LlmRag:
 
         return docs_processed_unique
 
+    def check_dataset_unique(self,
+                             huggingface_dataset: str):
+        if self.datasets:
+            return not (huggingface_dataset in self.datasets)
+        return False
+
     def merge_dataset_to_db(self,
                             huggingface_dataset: str,
-                            split: str,):
-                            # subset: str):
+                            split: str):
         logger.info(f"Loading dataset {huggingface_dataset=}")
         ds = load_dataset(path=huggingface_dataset, split=split, num_proc=8)
         loaded_ds = [Document(page_content=doc["text"]) for doc in ds]
@@ -198,6 +212,7 @@ class LlmRag:
         else:
             new_index_store.save_local(FAISS_LOCAL_DB, index_name=os.getenv("INDEX_NAME"))
             self.local_index_store = new_index_store
+        self.datasets[huggingface_dataset] = round(ds.dataset_size / 1e-6, 4)  # store in MB
 
 
     def drop_database(self):
@@ -205,11 +220,13 @@ class LlmRag:
             file_path = os.path.join(FAISS_LOCAL_DB, filename)
             try:
                 if os.path.isfile(file_path) or os.path.islink(file_path):
+                    logger.info(f"Deleting file {file_path}")
                     os.unlink(file_path)
                 elif os.path.isdir(file_path):
+                    logger.info(f"Deleting directory {file_path}")
                     shutil.rmtree(file_path)
             except Exception as e:
-                print(f"Failed to delete {file_path}. Reason: {e}")
+                logger.info(f"Failed to delete {file_path}. Reason: {e}")
         self.local_index_store = None
 
     def response(
@@ -219,11 +236,11 @@ class LlmRag:
         num_retrieved_docs: int = 30,
         num_docs_final: int = 5,
         rag: bool = False
-    ) -> tuple[str, List[Document]]:
+    ) -> tuple[str, List[Document] | None]:
         if rag:
             if self.local_index_store is None:
                 logger.error("Did not provide any datasets to initialize local index")
-                return "No local index store found", [Document("")]
+                return "No local index store found, disable rag with */rag* for normal responses, or add datasets using */add_dataset*", None
             logger.info("Retrieving documents...")
             relevant_docs = self.local_index_store.similarity_search(query=query, k=num_retrieved_docs)
             relevant_docs = [doc.page_content for doc in relevant_docs]  # Keep only the text

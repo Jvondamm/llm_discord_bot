@@ -1,6 +1,5 @@
 import os
 from bot import Bot
-from llm import Llm
 from llmrag import LlmRag
 from dotenv import load_dotenv
 
