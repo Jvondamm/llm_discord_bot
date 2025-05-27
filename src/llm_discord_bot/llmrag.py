@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
-from tqdm.notebook import tqdm
 from typing import List
 import torch
 from transformers import AutoTokenizer, pipeline, BitsAndBytesConfig, AutoModelForCausalLM
@@ -68,14 +67,12 @@ PROMPT = [
         "content":  """Question: {query}""",
     }
 ]
-
-FAISS_LOCAL_DB = Path(os.getenv("database_abs_path")).mkdir(parents=True, exist_ok=True)
-FAISS_DATASETS_LIST = FAISS_LOCAL_DB / Path("datasets_list.json")
 # endregion
 
 pd.set_option("display.max_colwidth", None)
 load_dotenv()
-
+DATASET_LIST = "datasets.json"
+DEFAULT_INDEX = "index"
 
 # region classes
 class LlmRag:
@@ -83,13 +80,11 @@ class LlmRag:
         self,
         llm_model_name: str = "meta-llama/Llama-3.2-3B-Instruct",
         embedding_model_name: str = "thenlper/gte-small",
-        datasets_name = 'datasets.json',
         # rerank_model_name: str | None = "colbert-ir/colbertv2.0",
     ):
-        self.datasets_path = Path(datasets_name)
         self.embedding_model_name = embedding_model_name
         self.embedding_model = self._initialize_embedding_model(embedding_model_name)
-        self.local_index_store, self.datasets = self._initialize_db(embedding_model=self.embedding_model)
+        self.database_path, self.loaded_index, self.dataset_list = self._initialize_database(embedding_model=self.embedding_model)
         self.llm = self._initialize_llm(model_name=llm_model_name)
         # if rerank_model_name is not None:
         #     self.reranker = RAGPretrainedModel.from_pretrained(rerank_model_name)
@@ -107,25 +102,25 @@ class LlmRag:
             encode_kwargs={"normalize_embeddings": True}
         )
 
-    def _initialize_db(self, embedding_model: HuggingFaceEmbeddings) -> (FAISS, dict[str]):
-        database_abs_path = Path(os.getenv("DATABASE_ABS_PATH"))
-        database_abs_path.mkdir(parents=True, exist_ok=True)
-        index_name = os.getenv("INDEX_NAME")
-        index_path = database_abs_path / Path(index_name + '.faiss')
-        local_index, datasets = None, None
-        if os.path.exists(index_path):
-            logger.info(f"Loading {index_path=}")
-            local_index = FAISS.load_local(folder_path=str(database_abs_path),
-                                    index_name=index_name,
+    def _initialize_database(self, embedding_model: HuggingFaceEmbeddings,
+                             ) -> (FAISS, dict[str]):
+        try:
+            index_path = Path(os.getenv("INDEX_PATH"))
+        except Exception as e:
+            raise FileNotFoundError("INDEX_PATH does not exist as an environment variable, ensure it is defined in your .env") from e
+        index_path.mkdir(parents=True, exist_ok=True)
+        local_index, dataset_list = None, {}
+        if os.path.exists(index_path / Path(DEFAULT_INDEX + ".index")):
+            logger.info(f"Loading index from {index_path}")
+            local_index = FAISS.load_local(folder_path=str(index_path),
                                     embeddings=embedding_model,
-                                    allow_dangerous_deserialization=True)  # Ensures we trust the db source
-        if os.path.exists(database_abs_path / self.datasets_path):  # list of datasets in the db
-            with open(database_abs_path / self.datasets_path, 'r') as f:
-                datasets = json.load(f)
-        if local_index is not None and datasets is None:
-            logger.warning(f"Unknown datasets in the database, continuing...")
-        return local_index, datasets
-
+                                    allow_dangerous_deserialization=True)  # Ensures we trust the index source
+        if os.path.exists(index_path / Path(DATASET_LIST)):  # list of datasets in the index
+            with open(index_path / Path(DATASET_LIST), 'r') as f:
+                dataset_list = json.load(f)
+        if local_index is not None and len(dataset_list) > 0:
+            logger.warning(f"Unknown datasets in the database, will not be able to track them going forward")
+        return index_path, local_index, dataset_list
 
     def _initialize_llm(self, model_name):
         logger.info("Initializing bitsandbytesconfig...")
@@ -186,18 +181,15 @@ class LlmRag:
 
         return docs_processed_unique
 
-    def check_dataset_unique(self,
-                             huggingface_dataset: str):
-        if self.datasets:
-            return not (huggingface_dataset in self.datasets)
-        return False
-
     def merge_dataset_to_db(self,
                             huggingface_dataset: str,
-                            split: str):
-        logger.info(f"Loading dataset {huggingface_dataset=}")
+                            split: str,
+                            column: str):
+        logger.info(f"Loading dataset `{huggingface_dataset}` on {split=} with {column=}")
         ds = load_dataset(path=huggingface_dataset, split=split, num_proc=8)
-        loaded_ds = [Document(page_content=doc["text"]) for doc in ds]
+        if column not in ds[0]:
+            return f"Column `{column}` not in `{huggingface_dataset}`, valid columns are {ds[0].keys()}"
+        loaded_ds = [Document(page_content=doc[column]) for doc in ds]
         docs_processed = self.split_documents(chunk_size=512,
                                               loaded_dataset=loaded_ds,
                                               tokenizer_name=self.embedding_model_name)
@@ -206,18 +198,22 @@ class LlmRag:
         new_index_store = FAISS.from_documents(
             docs_processed, self.embedding_model, distance_strategy=DistanceStrategy.COSINE
         )
-        if self.local_index_store is not None:
-            self.local_index_store.merge_from(new_index_store)
-            self.local_index_store.save_local(FAISS_LOCAL_DB)
+        if self.loaded_index is not None:
+            self.loaded_index.merge_from(new_index_store)
+            self.loaded_index.save_local(self.database_path)
         else:
-            new_index_store.save_local(FAISS_LOCAL_DB, index_name=os.getenv("INDEX_NAME"))
-            self.local_index_store = new_index_store
-        self.datasets[huggingface_dataset] = round(ds.dataset_size / 1e-6, 4)  # store in MB
+            new_index_store.save_local(self.database_path)
+            self.loaded_index = new_index_store
+        self.dataset_list[huggingface_dataset] = round(ds.dataset_size / 1e6, 2)  # store in MB
+        with open(self.database_path / Path(DATASET_LIST), 'w', encoding='utf-8') as f:
+            json.dump(self.dataset_list, f, ensure_ascii=False, indent=4)
 
 
     def drop_database(self):
-        for filename in os.listdir(FAISS_LOCAL_DB):
-            file_path = os.path.join(FAISS_LOCAL_DB, filename)
+        """Deletes all indexes and dataset list"""
+        index_path = Path(os.getenv("INDEX_PATH"))
+        for filename in os.listdir(index_path):
+            file_path = os.path.join(index_path, filename)
             try:
                 if os.path.isfile(file_path) or os.path.islink(file_path):
                     logger.info(f"Deleting file {file_path}")
@@ -227,7 +223,8 @@ class LlmRag:
                     shutil.rmtree(file_path)
             except Exception as e:
                 logger.info(f"Failed to delete {file_path}. Reason: {e}")
-        self.local_index_store = None
+        self.loaded_index = None
+        self.dataset_list = None
 
     def response(
         self,
@@ -238,11 +235,11 @@ class LlmRag:
         rag: bool = False
     ) -> tuple[str, List[Document] | None]:
         if rag:
-            if self.local_index_store is None:
+            if self.loaded_index is None:
                 logger.error("Did not provide any datasets to initialize local index")
                 return "No local index store found, disable rag with */rag* for normal responses, or add datasets using */add_dataset*", None
             logger.info("Retrieving documents...")
-            relevant_docs = self.local_index_store.similarity_search(query=query, k=num_retrieved_docs)
+            relevant_docs = self.loaded_index.similarity_search(query=query, k=num_retrieved_docs)
             relevant_docs = [doc.page_content for doc in relevant_docs]  # Keep only the text
 
             # Optionally rerank results

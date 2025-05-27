@@ -89,7 +89,7 @@ class Bot(commands.Bot):
                 bot_response, docs = await asyncio.to_thread(self.llm.response, query=prompt, identity=self.llm_config["identity"], rag=self.rag)
                 filtered_bot_response = filter_mentions(bot_response)
                 if docs and self.rag:
-                    filtered_bot_response += "\n\nSources:\n"
+                    filtered_bot_response += "\n\nRAG Sources:\n"
                     doc_num = 0
                     for doc in docs:
                         data = None

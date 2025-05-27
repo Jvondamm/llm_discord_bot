@@ -5,6 +5,7 @@ import logging
 from dotenv import load_dotenv
 from discord.ext import commands
 from discord.ext.commands import Context
+from table2ascii import table2ascii as t2a, PresetStyle
 from discord import app_commands, Embed, Object, ui, Interaction, ButtonStyle
 
 
@@ -32,26 +33,31 @@ class Dataset(commands.Cog, name="llm"):
         self.bot = bot
 
     @commands.hybrid_command(
-        name="add_dataset",
+        name="db_add",
         description="Add a HuggingFace Dataset to the bot's database, optionally provide a split and subset.",
     )
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
     async def add_dataset(self,
                           context: Context,
                           dataset: str,
-                          split: str = "train") -> None:
+                          split: str = "train",
+                          column: str = "text") -> None:
         """
         Add a HuggingFace Dataset to the bot's database. Ensure you trust the dataset first!
 
         :param context: command context
         :param dataset: HF dataset link to load and store
         :param split: HF dataset split, defaults to 'train'
+        :param column: The column we will store as a document in the DB, all other columns will be disregarded.
         """
-        if self.bot.llm.check_dataset_unique(dataset):
+        if dataset not in self.bot.llm.dataset_list:
             await context.send(embed=Embed(description=f"Loading {dataset=} on {split=}", color=0xD75BF4))
             t_start = time.time()
-            await asyncio.to_thread(self.bot.llm.merge_dataset_to_db, huggingface_dataset=dataset, split=split)
-            await context.send(embed=Embed(description=f"Finished Loading {dataset=} in {round(time.time() - t_start, 1)} seconds", color=0xD75BF4))
+            errors = await asyncio.to_thread(self.bot.llm.merge_dataset_to_db, huggingface_dataset=dataset, split=split, column=column)
+            if not errors:
+                await context.send(embed=Embed(description=f"Finished Loading {dataset=} in {round(time.time() - t_start, 1)} seconds", color=0xD75BF4))
+            else:
+                await context.send(embed=Embed(description=errors))
         else:
             await context.send(embed=Embed(description=f"{dataset=} already exists in the database"))
 
@@ -72,7 +78,7 @@ class Dataset(commands.Cog, name="llm"):
 
 
     @commands.hybrid_command(
-        name="wipe",
+        name="db_wipe",
         description="Wipe database of all datasets",
     )
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
@@ -97,15 +103,24 @@ class Dataset(commands.Cog, name="llm"):
 
 
     @commands.hybrid_command(
-        name="database_size",
-        description="Get the current size of the database",
+        name="db_info",
+        description="Get the list of Huggingface datasets and their sizes in the database",
     )
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
     async def get_database_size(self, context: Context) -> None:
-        if self.bot.llm.database:
-            pass
-        else:
-            await context.send()
+        tot_size = 0
+        body = []
+        if self.bot.llm.dataset_list is not None:
+            for ds, size in self.bot.llm.dataset_list.items():
+                tot_size += size
+                body.append([ds, size])
+        body.append(["Total", tot_size])
+        output = t2a(
+            header=["Dataset", "Size (mB)"],
+            body=body,
+            style=PresetStyle.thin_compact
+        )
+        await context.send(f"```\n{output}\n```")
 
 async def setup(bot) -> None:
     await bot.add_cog(Dataset(bot))
