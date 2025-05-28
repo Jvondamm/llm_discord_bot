@@ -88,10 +88,8 @@ class Bot(commands.Bot):
                                        history_text)
                 bot_response, docs = await asyncio.to_thread(self.llm.response, query=prompt, identity=self.llm_config["identity"], rag=self.rag)
                 filtered_bot_response = filter_mentions(bot_response)
-                if docs and self.rag:
-                    filtered_bot_response += "\n\nRAG Sources:\n"
-                    doc_num = 0
-                    for doc in docs:
+                if docs:
+                    for doc, i in enumerate(docs):
                         data = None
                         if isinstance(doc, Document):
                             data = doc.page_content
@@ -100,8 +98,7 @@ class Bot(commands.Bot):
                         else:
                             logger.error(f"Unknown {doc=}, skipping this source...")
                         if data:
-                            filtered_bot_response += f"{doc_num}. {data}\n"
-                            doc_num += 1
+                            logger.info(f"Source Number {i}:\n\n{data}")
 
                 message_chunks = split_message(filtered_bot_response)
                 for chunk in message_chunks:

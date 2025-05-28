@@ -14,6 +14,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 from langchain_community.vectorstores.utils import DistanceStrategy
 from langchain_community.vectorstores import FAISS
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_huggingface import HuggingFaceEmbeddings
 
 # region logging
@@ -260,8 +261,8 @@ class LlmRag:
             relevant_docs = None
 
         # Redact an answer
-        logger.info("Generating answer...")
+        logger.info(f"PROMPT:\n{prompt}")
         answer = self.llm(prompt)[0]["generated_text"]
-
+        logger.info(f"ANSWER:\n{answer}")
         return answer, relevant_docs
     # endregion

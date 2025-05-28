@@ -5,7 +5,7 @@ import logging
 from dotenv import load_dotenv
 from discord.ext import commands
 from discord.ext.commands import Context
-from table2ascii import table2ascii as t2a, PresetStyle
+from table2ascii import table2ascii as t2a, PresetStyle, Alignment
 from discord import app_commands, Embed, Object, ui, Interaction, ButtonStyle
 
 
@@ -114,11 +114,12 @@ class Dataset(commands.Cog, name="llm"):
             for ds, size in self.bot.llm.dataset_list.items():
                 tot_size += size
                 body.append([ds, size])
-        body.append(["Total", tot_size])
         output = t2a(
-            header=["Dataset", "Size (mB)"],
+            header=["Dataset", "Size"],
             body=body,
-            style=PresetStyle.thin_compact
+            style=PresetStyle.thin_compact,
+            alignments=[Alignment.LEFT, Alignment.RIGHT],
+            footer=["Total", f"{tot_size} mB"]
         )
         await context.send(f"```\n{output}\n```")
 

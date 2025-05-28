@@ -64,14 +64,14 @@ class General(commands.Cog, name="general"):
         description="Get bot configuration, llm models, owner, etc...",
     )
     @app_commands.guilds(discord.Object(id=os.getenv("DISCORD_GUILD_ID")))
-    async def botinfo(self, context: Context) -> None:
+    async def info(self, context: Context) -> None:
         """
         Get bot configuration, llm models, owner, etc...
 
         :param context: command context
         """
         embed = discord.Embed(
-            description=f"Generating conversation with model: {self.bot.llm.llm}\n"
+            description=f"Generating conversation with model: {self.bot.llm.llm.model}\n"
                         f"Generating embeddings with model: {self.bot.llm.embedding_model_name}",
             color=0xBEBEFE,
         )
