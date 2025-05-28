@@ -77,6 +77,7 @@ class General(commands.Cog, name="general"):
         )
         embed.set_author(name="Bot Information")
         embed.add_field(name="Owner:", value="virxx", inline=True)
+        embed.add_field(name="Rag Enabled:", value=self.bot.rag)
         embed.add_field(
             name="Python Version:", value=f"{platform.python_version()}", inline=True
         )
