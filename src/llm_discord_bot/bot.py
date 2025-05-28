@@ -2,6 +2,7 @@ import asyncio
 import random
 import os
 import json
+from pathlib import Path
 from platform import python_version, system, release
 
 from discord import Intents, Message, Embed, Object
@@ -12,6 +13,7 @@ from dotenv import load_dotenv
 
 import logging
 
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 from transformers import pipeline
 
@@ -84,9 +86,8 @@ class Bot(commands.Bot):
 
         async def respond(message, history_text):
             async with message.channel.typing():
-                prompt = format_prompt(self.llm_config["question_prompt"], message.author.name, remove_id(message.content),
-                                       history_text)
-                bot_response, docs = await asyncio.to_thread(self.llm.response, query=prompt, identity=self.llm_config["identity"], rag=self.rag)
+                prompt = format_prompt(self.llm_config["question_prompt"], message.author.name, remove_id(message.content))
+                bot_response, docs = await asyncio.to_thread(self.llm.response, query=prompt, context=history_text, identity=self.llm_config["identity"], rag=self.rag)
                 filtered_bot_response = filter_mentions(bot_response)
                 if docs:
                     for doc, i in enumerate(docs):
@@ -119,6 +120,30 @@ class Bot(commands.Bot):
         # Then join it into a single text blob
         history_list.reverse()
         history_text = '\n'.join(history_list)
+
+        if message.attachments is not None:
+            for attachment in message.attachments:
+                logger.info(f"Found attachment {attachment.filename}, adding to rag database")
+                if attachment.content_type in ['txt', 'py', 'json', 'csv']:
+                    try:
+                        file_content = await attachment.read()
+                        file_string = file_content.decode('utf-8')
+                        self.llm.merge_to_db(attachment.filename, attachment.size, Document(page_content=file_string))
+                    except UnicodeDecodeError:
+                       logger.warning(f"Cannot decode {attachment.filename} as UTF-8, filetype {attachment.content_type} may be unknown")
+                elif attachment.content_type == 'pdf':
+                    filepath = Path('tmp')
+                    try:
+                        await attachment.save(fp=filepath)
+                        loader = PyPDFLoader(filepath)
+                        self.llm.merge_to_db(attachment.filename, attachment.size, [loader.load()])
+                    except Exception as e:
+                       logger.error(f"Parsing {attachment.filename} resulted in {e}")
+                    try:
+                        os.remove(filepath)
+                    except FileNotFoundError:
+                        pass
+
 
         if self.user.mentioned_in(message):
             logger.info(f"Direct message received from author={message.author.name}, generating response...")

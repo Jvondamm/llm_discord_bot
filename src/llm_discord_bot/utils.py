@@ -9,10 +9,9 @@ def split_message(message):
     return [message[i:i + 1999] for i in range(0, len(message), 2000)]
 
 
-def format_prompt(prompt, user, question, history):
+def format_prompt(prompt, user, question):
     formatted_prompt = prompt.replace("{user}", user)
     formatted_prompt = formatted_prompt.replace("{question}", question)
-    formatted_prompt = formatted_prompt.replace("{history}", history)
     return formatted_prompt
 
 

@@ -191,11 +191,25 @@ class LlmRag:
         if column not in ds[0]:
             return f"Column `{column}` not in `{huggingface_dataset}`, valid columns are {ds[0].keys()}"
         loaded_ds = [Document(page_content=doc[column]) for doc in ds]
+        self.merge_to_db(huggingface_dataset, ds.dataset_size, loaded_ds)
+
+
+    def merge_to_db(self,
+                    data_name: str,
+                    data_size: float,
+                    data: List[Document]):
+        """
+        Merges the file or dataset into the database
+
+        :param data_name: The filename or name of the dataset
+        :data_size: The size of the data in bytes
+        :data: The data as a list of Langchain Document(s)
+        """
         docs_processed = self.split_documents(chunk_size=512,
-                                              loaded_dataset=loaded_ds,
+                                              loaded_dataset=data,
                                               tokenizer_name=self.embedding_model_name)
 
-        logger.info(f"Creating vector store of {huggingface_dataset=}")
+        logger.info(f"Creating vector store of {data_name}")
         new_index_store = FAISS.from_documents(
             docs_processed, self.embedding_model, distance_strategy=DistanceStrategy.COSINE
         )
@@ -205,7 +219,7 @@ class LlmRag:
         else:
             new_index_store.save_local(self.database_path)
             self.loaded_index = new_index_store
-        self.dataset_list[huggingface_dataset] = round(ds.dataset_size / 1e6, 2)  # store in MB
+        self.dataset_list[data_name] = round(data_size / 1e6, 2)  # store in MB
         with open(self.database_path / Path(DATASET_LIST), 'w', encoding='utf-8') as f:
             json.dump(self.dataset_list, f, ensure_ascii=False, indent=4)
 
@@ -230,6 +244,7 @@ class LlmRag:
     def response(
         self,
         query: str,
+        context: str,
         identity: str,
         num_retrieved_docs: int = 30,
         num_docs_final: int = 5,
@@ -252,12 +267,12 @@ class LlmRag:
             relevant_docs = relevant_docs[:num_docs_final]
 
             # Build the final prompt
-            context = "\nExtracted documents:\n"
+            context += "\nExtracted documents:\n"
             context += "".join([f"Document {str(i)}:::\n" + doc for i, doc in enumerate(relevant_docs)])
 
             prompt = self.rag_prompt.format(identity=identity, query=query, context=context)
         else:
-            prompt = self.prompt.format(identity=identity, query=query)
+            prompt = self.prompt.format(identity=identity, query=query, context=context)
             relevant_docs = None
 
         # Redact an answer

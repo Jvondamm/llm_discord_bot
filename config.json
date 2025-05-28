@@ -4,6 +4,6 @@
     "trigger_level": 1,
     "temperature": 0.7,
     "history_lines": 5,
-    "question_prompt": "Discord Channel History:\n{history}\n\nAnswer only this question: \"{question}\".",
-    "trigger_prompt": "Discord Channel History:\n{history}\n\nRespond only this comment: \"{question}\"."
+    "question_prompt": "Answer only this question: \"{question}\".",
+    "trigger_prompt": "Respond only this comment: \"{question}\"."
 }
