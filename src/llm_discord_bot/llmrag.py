@@ -103,7 +103,8 @@ class LlmRag:
             encode_kwargs={"normalize_embeddings": True}
         )
 
-    def _initialize_database(self, embedding_model: HuggingFaceEmbeddings,
+    @staticmethod
+    def _initialize_database(embedding_model: HuggingFaceEmbeddings,
                              ) -> (FAISS, dict[str]):
         try:
             index_path = Path(os.getenv("INDEX_PATH"))
@@ -111,15 +112,17 @@ class LlmRag:
             raise FileNotFoundError("INDEX_PATH does not exist as an environment variable, ensure it is defined in your .env") from e
         index_path.mkdir(parents=True, exist_ok=True)
         local_index, dataset_list = None, {}
-        if os.path.exists(index_path / Path(DEFAULT_INDEX + ".index")):
+        if os.path.exists(index_path / Path(DEFAULT_INDEX + ".faiss")):
             logger.info(f"Loading index from {index_path}")
             local_index = FAISS.load_local(folder_path=str(index_path),
                                     embeddings=embedding_model,
                                     allow_dangerous_deserialization=True)  # Ensures we trust the index source
+        else:
+            logger.warning(f"No local index found in {index_path / Path(DEFAULT_INDEX + ".faiss")}")
         if os.path.exists(index_path / Path(DATASET_LIST)):  # list of datasets in the index
             with open(index_path / Path(DATASET_LIST), 'r') as f:
                 dataset_list = json.load(f)
-        if local_index is not None and len(dataset_list) > 0:
+        if local_index is not None and len(dataset_list) == 0:
             logger.warning(f"Unknown datasets in the database, will not be able to track them going forward")
         return index_path, local_index, dataset_list
 
@@ -253,7 +256,7 @@ class LlmRag:
         if rag:
             if self.loaded_index is None:
                 logger.error("Did not provide any datasets to initialize local index")
-                return "No local index store found, disable rag with */rag* for normal responses, or add datasets using */add_dataset*", None
+                return "Couldn't reply with RAG: Database is empty.\nPopulate the database with Huggingface datasets or upload documents", None
             logger.info("Retrieving documents...")
             relevant_docs = self.loaded_index.similarity_search(query=query, k=num_retrieved_docs)
             relevant_docs = [doc.page_content for doc in relevant_docs]  # Keep only the text
