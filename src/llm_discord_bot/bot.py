@@ -17,7 +17,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 from transformers import pipeline
 
-from src.llm_discord_bot.utils import format_prompt, filter_mentions, split_message, remove_id
+from src.llm_discord_bot.utils import filter_mentions, split_message, remove_id
 
 logger = logging.getLogger("BOT")
 
@@ -86,11 +86,11 @@ class Bot(commands.Bot):
 
         async def respond(message, history_text):
             async with message.channel.typing():
-                prompt = format_prompt(self.llm_config["question_prompt"], message.author.name, remove_id(message.content))
+                prompt = remove_id(message.content)
                 bot_response, docs = await asyncio.to_thread(self.llm.response, query=prompt, context=history_text, identity=self.llm_config["identity"], rag=self.rag)
                 filtered_bot_response = filter_mentions(bot_response)
                 if docs:
-                    for doc, i in enumerate(docs):
+                    for i, doc in enumerate(docs):
                         data = None
                         if isinstance(doc, Document):
                             data = doc.page_content
@@ -124,25 +124,30 @@ class Bot(commands.Bot):
         if message.attachments is not None:
             for attachment in message.attachments:
                 logger.info(f"Found attachment {attachment.filename}, adding to rag database")
-                if attachment.content_type in ['txt', 'py', 'json', 'csv']:
+                if 'text' in attachment.content_type:
                     try:
                         file_content = await attachment.read()
                         file_string = file_content.decode('utf-8')
-                        self.llm.merge_to_db(attachment.filename, attachment.size, Document(page_content=file_string))
+                        self.llm.merge_to_db(attachment.filename, attachment.size, [Document(page_content=file_string)])
                     except UnicodeDecodeError:
                        logger.warning(f"Cannot decode {attachment.filename} as UTF-8, filetype {attachment.content_type} may be unknown")
-                elif attachment.content_type == 'pdf':
+                elif attachment.content_type == 'application/pdf':
                     filepath = Path('tmp')
                     try:
                         await attachment.save(fp=filepath)
                         loader = PyPDFLoader(filepath)
-                        self.llm.merge_to_db(attachment.filename, attachment.size, [loader.load()])
+                        self.llm.merge_to_db(attachment.filename, attachment.size, loader.load())
                     except Exception as e:
                        logger.error(f"Parsing {attachment.filename} resulted in {e}")
+                       return f"I had an error when trying the read the PDF {attachment.filename}: {e}"
                     try:
                         os.remove(filepath)
                     except FileNotFoundError:
                         pass
+                else:
+                    await message.channel.send(f"I couldn't recognize the file format you attached: {attachment.content_type}.\n"
+                                         f"I currently support content types of `text` and `pdf`.")
+                    return
 
 
         if self.user.mentioned_in(message):

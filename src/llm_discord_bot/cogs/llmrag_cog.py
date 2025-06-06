@@ -50,7 +50,7 @@ class Dataset(commands.Cog, name="llm"):
         :param split: HF dataset split, defaults to 'train'
         :param column: The column we will store as a document in the DB, all other columns will be disregarded.
         """
-        if dataset not in self.bot.llm.dataset_list:
+        if dataset not in self.bot.llm.db_entries:
             await context.send(embed=Embed(description=f"Loading {dataset=} on {split=}", color=0xD75BF4))
             t_start = time.time()
             errors = await asyncio.to_thread(self.bot.llm.merge_dataset_to_db, huggingface_dataset=dataset, split=split, column=column)
@@ -110,16 +110,16 @@ class Dataset(commands.Cog, name="llm"):
     async def get_database_size(self, context: Context) -> None:
         tot_size = 0
         body = []
-        if self.bot.llm.dataset_list is not None:
-            for ds, size in self.bot.llm.dataset_list.items():
+        if self.bot.llm.db_entries is not None:
+            for ds, size in self.bot.llm.db_entries.items():
                 tot_size += size
-                body.append([ds, size])
+                body.append([ds, f"{size} mB"])
         output = t2a(
             header=["Dataset", "Size"],
             body=body,
             style=PresetStyle.thin_compact,
             alignments=[Alignment.LEFT, Alignment.RIGHT],
-            footer=["Total", f"{tot_size} mB"]
+            footer=["Total", f"{round(tot_size, 2)} mB"]
         )
         await context.send(f"```\n{output}\n```")
 

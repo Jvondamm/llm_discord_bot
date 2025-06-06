@@ -42,7 +42,6 @@ RAG_PROMPT = [
         Using the information contained in the context,
 give a comprehensive answer to the question.
 Respond only to the question asked, response should be concise and relevant to the question.
-Provide the number of the source document when relevant.
 If the answer cannot be deduced from the context, do not give an answer.""",
     },
     {
@@ -85,7 +84,7 @@ class LlmRag:
     ):
         self.embedding_model_name = embedding_model_name
         self.embedding_model = self._initialize_embedding_model(embedding_model_name)
-        self.database_path, self.loaded_index, self.dataset_list = self._initialize_database(embedding_model=self.embedding_model)
+        self.database_path, self.loaded_index, self.db_entries = self._initialize_database(embedding_model=self.embedding_model)
         self.llm = self._initialize_llm(model_name=llm_model_name)
         # if rerank_model_name is not None:
         #     self.reranker = RAGPretrainedModel.from_pretrained(rerank_model_name)
@@ -222,9 +221,9 @@ class LlmRag:
         else:
             new_index_store.save_local(self.database_path)
             self.loaded_index = new_index_store
-        self.dataset_list[data_name] = round(data_size / 1e6, 2)  # store in MB
+        self.db_entries[data_name] = round(data_size / 1e6, 2)  # store in MB
         with open(self.database_path / Path(DATASET_LIST), 'w', encoding='utf-8') as f:
-            json.dump(self.dataset_list, f, ensure_ascii=False, indent=4)
+            json.dump(self.db_entries, f, ensure_ascii=False, indent=4)
 
 
     def drop_database(self):
@@ -242,7 +241,9 @@ class LlmRag:
             except Exception as e:
                 logger.info(f"Failed to delete {file_path}. Reason: {e}")
         self.loaded_index = None
-        self.dataset_list = None
+        for data in self.db_entries.keys():
+            logger.info(f"Deleting {data}")
+        self.db_entries = None
 
     def response(
         self,
@@ -257,21 +258,24 @@ class LlmRag:
             if self.loaded_index is None:
                 logger.error("Did not provide any datasets to initialize local index")
                 return "Couldn't reply with RAG: Database is empty.\nPopulate the database with Huggingface datasets or upload documents", None
-            logger.info("Retrieving documents...")
-            relevant_docs = self.loaded_index.similarity_search(query=query, k=num_retrieved_docs)
-            relevant_docs = [doc.page_content for doc in relevant_docs]  # Keep only the text
+            if query == "":
+                logger.warning(f"Empty query, not finding searching database for documents")
+            else:
+                logger.info(f"Retrieving documents using {query=}\n")
+                relevant_docs = self.loaded_index.similarity_search(query=query, k=num_retrieved_docs)
+                relevant_docs = [doc.page_content for doc in relevant_docs]  # Keep only the text
 
-            # Optionally rerank results
-            if self.reranker:
-                logger.info("Reranking documents...")
-                relevant_docs = self.reranker.rerank(query, relevant_docs, k=num_docs_final)
-                relevant_docs = [doc["content"] for doc in relevant_docs]
+                # Optionally rerank results
+                if self.reranker:
+                    logger.info("Reranking documents...")
+                    relevant_docs = self.reranker.rerank(query, relevant_docs, k=num_docs_final)
+                    relevant_docs = [doc["content"] for doc in relevant_docs]
 
-            relevant_docs = relevant_docs[:num_docs_final]
+                relevant_docs = relevant_docs[:num_docs_final]
 
-            # Build the final prompt
-            context += "\nExtracted documents:\n"
-            context += "".join([f"Document {str(i)}:::\n" + doc for i, doc in enumerate(relevant_docs)])
+                # Build the final prompt
+                context += "\nExtracted documents:\n"
+                context += "".join([f"\n:::Document {str(i)}:::\n" + doc for i, doc in enumerate(relevant_docs)])
 
             prompt = self.rag_prompt.format(identity=identity, query=query, context=context)
         else:
