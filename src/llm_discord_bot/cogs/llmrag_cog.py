@@ -5,9 +5,8 @@ import logging
 from dotenv import load_dotenv
 from discord.ext import commands
 from discord.ext.commands import Context
-from table2ascii import table2ascii as t2a, PresetStyle, Alignment
 from discord import app_commands, Embed, Object, ui, Interaction, ButtonStyle
-
+from table2ascii import table2ascii as t2a, PresetStyle, Alignment
 
 load_dotenv()
 

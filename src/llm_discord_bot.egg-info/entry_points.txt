@@ -1,0 +1,2 @@
+[console_scripts]
+bot = llm_dicsord_bot.__main__:main

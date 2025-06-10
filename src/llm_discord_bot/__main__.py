@@ -1,7 +1,7 @@
 import os
-from bot import Bot
-from llmrag import LlmRag
 from dotenv import load_dotenv
+from llm_discord_bot.bot import Bot
+from llm_discord_bot.llmrag import LlmRag
 
 
 def main():

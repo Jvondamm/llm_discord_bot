@@ -17,7 +17,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 from transformers import pipeline
 
-from src.llm_discord_bot.utils import filter_mentions, split_message, remove_id
+from llm_discord_bot.utils import filter_mentions, split_message, remove_id
 
 logger = logging.getLogger("BOT")
 
