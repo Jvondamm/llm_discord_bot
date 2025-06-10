@@ -1,17 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "llm_discord_bot"
 dynamic = ["version"]
 authors = [ { name="Joshua von Damm", email="jvondamm@gmail.com" } ]
 description = "Discord chatbot that utilizes a local LLM for processing with a learning RAG pipeline"
 readme = "README.md"
+requires-python = ">=3.9.0"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "operating System :: OS Independent",
+    "Operating System :: OS Independent",
 ]
 
 dependencies = [
     "discord >= 2.3.2",
-    "dotenv >= 0.9.9",
+    "python-dotenv >= 1.1.0",
     "torch >= 2.6.0",
     "transformers >= 4.51.3",
     "accelerate >= 1.6.0",
@@ -29,14 +34,23 @@ dependencies = [
 dev = [
     "pre-commit >= 4.2.0",
     "ruff >= 0.11.6",
-    "uv >= 0.6.16"
+    "uv >= 0.6.16",
+    "fabric",
+    "hatch"
 ]
 
 [project.scripts]
-bot = "llm_dicsord_bot.__main__:main"
+dbot = "llm_dicsord_bot.__main__:main"
+
+[project.urls]
+Repository = "https://github.com/Jvondamm/llm_discord_bot"
+
+
+[tool.hatch.version]
+path = "src/llm_discord_bot/__init__.py"
 
 [tool.ruff]
-line-length = 120
+line-length = 150
 exclude = [
     "bot.env",
     "config.json"

@@ -1,0 +1,26 @@
+add reranking?
+function calling for multiple APIs, crypto, spotify, builtin discord controls, ect...
+switch to chroma db? - might be able to manage documents better...
+
+brave api with rag?
+
+
+https://github.com/kkrypt0nn/Python-Discord-Bot-Template/blob/main/bot.py
+
+### Notes
+
+mistralai/Mistral-7B-Instruct-v0.3 - Too slow for Rtx 2080 Super
+
+
+Good performing mode
+
+https://huggingface.co/microsoft/Phi-4-mini-instruct
+
+
+load datasets: https://huggingface.co/docs/datasets/en/create_dataset
+
+
+function calling llm: https://www.reddit.com/r/LocalLLaMA/comments/196drfh/llms_to_call_api_and_use_tools/
+going to try and use the base model instead of chatlab as chatlab uses openapi instead
+
+src: https://huggingface.co/meetkai/functionary-small-v3.2
