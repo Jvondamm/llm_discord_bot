@@ -1,5 +1,4 @@
 import asyncio
-import random
 import os
 import json
 from pathlib import Path
@@ -41,124 +40,8 @@ class Bot(commands.Bot):
         )
         self.load_config(config_file)
 
-    def load_config(self, config_file):
-        with open(config_file) as f:
-            self.llm_config = json.load(f)
-
-
-    async def load_cogs(self) -> None:
-        """
-        executes on bot start, load all cogs as extensions within cogs/ dir
-        """
-        for file in os.listdir(f"{os.path.realpath(os.path.dirname(__file__))}/cogs"):
-            if file.endswith(".py"):
-                extension = file[:-3]
-                try:
-                    await self.load_extension(f"cogs.{extension}")
-                    logger.info(f"Loaded extension '{extension}'")
-                except Exception as e:
-                    exception = f"{type(e).__name__}: {e}"
-                    logger.error(
-                        f"Failed to load extension {extension}\n{exception}"
-                    )
-
-    async def setup_hook(self) -> None:
-        """
-        loads cogs and syncs commands
-        """
-        logger.info(f"Logged in as {self.user.name}")
-        logger.info(f"discord.py API version: {__discord_version__}")
-        logger.info(f"Python version: {python_version()}")
-        logger.info(
-            f"Running on: {system()} {release()} ({os.name})"
-        )
-        await self.load_cogs()
-        try:
-            synced = await self.tree.sync(guild=self.guild)
-            logger.info(f"Synced {len(synced)} commands to guild {self.guild.id}")
-        except Exception as e:
-            logger.error(f"Error syncing commands: {e}")
-
-    async def on_message(self, message: Message):
-        """
-        triggers on any message received to the guild
-        """
-
-        async def respond(message, history_text):
-            async with message.channel.typing():
-                prompt = remove_id(message.content)
-                bot_response, docs = await asyncio.to_thread(self.llm.response, query=prompt, context=history_text, identity=self.llm_config["identity"], rag=self.rag)
-                filtered_bot_response = filter_mentions(bot_response)
-                if docs:
-                    for i, doc in enumerate(docs):
-                        data = None
-                        if isinstance(doc, Document):
-                            data = doc.page_content
-                        elif isinstance(doc, str):
-                            data = doc
-                        else:
-                            logger.error(f"Unknown {doc=}, skipping this source...")
-                        if data:
-                            logger.info(f"Source Number {i}:\n\n{data}")
-
-                message_chunks = split_message(filtered_bot_response)
-                for chunk in message_chunks:
-                    await message.channel.send(chunk)
-
-        # Never reply to yourself
-        if message.author == self.user:
-            return
-
-        # Grab the channel history so we can add it as context for replies, makes a nice blob of data
-        history_list = []
-        channel_history = [user async for user in message.channel.history(limit=self.llm_config["history_lines"] + 1)]
-        for history in channel_history:
-            if remove_id(history.content) != remove_id(message.content):
-                history_list.append(history.author.name + ": " + remove_id(history.content))
-
-        # Reverse the order of the history so it looks more like the chat log
-        # Then join it into a single text blob
-        history_list.reverse()
-        history_text = '\n'.join(history_list)
-
-        if message.attachments is not None:
-            for attachment in message.attachments:
-                logger.info(f"Found attachment {attachment.filename}, adding to rag database")
-                if 'text' in attachment.content_type:
-                    try:
-                        file_content = await attachment.read()
-                        file_string = file_content.decode('utf-8')
-                        self.llm.merge_to_db(attachment.filename, attachment.size, [Document(page_content=file_string)])
-                    except UnicodeDecodeError:
-                       logger.warning(f"Cannot decode {attachment.filename} as UTF-8, filetype {attachment.content_type} may be unknown")
-                elif attachment.content_type == 'application/pdf':
-                    filepath = Path('tmp')
-                    try:
-                        await attachment.save(fp=filepath)
-                        loader = PyPDFLoader(filepath)
-                        self.llm.merge_to_db(attachment.filename, attachment.size, loader.load())
-                    except Exception as e:
-                       logger.error(f"Parsing {attachment.filename} resulted in {e}")
-                       return f"I had an error when trying the read the PDF {attachment.filename}: {e}"
-                    try:
-                        os.remove(filepath)
-                    except FileNotFoundError:
-                        pass
-                else:
-                    await message.channel.send(f"I couldn't recognize the file format you attached: {attachment.content_type}.\n"
-                                         f"I currently support content types of `text` and `pdf`.")
-                    return
-
-
-        if self.user.mentioned_in(message):
-            logger.info(f"Direct message received from author={message.author.name}, generating response...")
-            await respond(message, history_text)
-        elif any (trigger in message.content for trigger in self.llm_config["triggers"]) and \
-               random.random() <= float(self.llm_config["trigger_level"]):
-            logger.info(f"Found trigger word in channel message from author={message.author.name} and dice-rolled above the trigger-level, generating response...")
-            await respond(message, history_text)
-
-    async def on_command_completion(self, context: Context) -> None:
+    @staticmethod
+    async def on_command_completion(context: Context) -> None:
         """
         The code in this event is executed every time a normal command has been *successfully* executed.
 
@@ -176,7 +59,121 @@ class Bot(commands.Bot):
                 f"Executed {executed_command} command by {context.author} (ID: {context.author.id}) in DMs"
             )
 
-    async def on_command_error(self, context: Context, error) -> None:
+    def load_config(self, config_file):
+        with open(config_file) as f:
+            self.llm_config = json.load(f)
+
+
+    async def load_cogs(self) -> None:
+        """Executes on bot start, load all cogs as extensions within cogs/ dir"""
+        for file in os.listdir(f"{os.path.realpath(os.path.dirname(__file__))}/cogs"):
+            if file.endswith(".py"):
+                extension = file[:-3]
+                try:
+                    await self.load_extension(f"cogs.{extension}")
+                    logger.info(f"Loaded extension '{extension}'")
+                except Exception as e:
+                    exception = f"{type(e).__name__}: {e}"
+                    logger.error(
+                        f"Failed to load extension {extension}\n{exception}"
+                    )
+
+    async def setup_hook(self) -> None:
+        """Loads cogs and syncs commands"""
+        logger.info(f"Logged in as {self.user.name}")
+        logger.info(f"discord.py API version: {__discord_version__}")
+        logger.info(f"Python version: {python_version()}")
+        logger.info(
+            f"Running on: {system()} {release()} ({os.name})"
+        )
+        await self.load_cogs()
+        try:
+            synced = await self.tree.sync(guild=self.guild)
+            logger.info(f"Synced {len(synced)} commands to guild {self.guild.id}")
+        except Exception as e:
+            logger.error(f"Error syncing commands: {e}")
+
+    async def _respond(self, message: Message, history_text: str):
+        """
+        Private function that generates a response from the llm
+
+        :param message: Discord message object
+        :param history_text: The discord channel history for context
+        """
+        async with message.channel.typing():
+            prompt = remove_id(message.content)
+            bot_response, docs = await asyncio.to_thread(self.llm.response, query=prompt, context=history_text, identity=self.llm_config["identity"], rag=self.rag)
+            filtered_bot_response = filter_mentions(bot_response)
+            if docs:
+                for i, doc in enumerate(docs):
+                    data = None
+                    if isinstance(doc, Document):
+                        data = doc.page_content
+                    elif isinstance(doc, str):
+                        data = doc
+                    else:
+                        logger.error(f"Unknown {doc=}, skipping this source...")
+                    if data:
+                        logger.info(f"Source Number {i}:\n\n{data}")
+
+            message_chunks = split_message(filtered_bot_response)
+            for chunk in message_chunks:
+                await message.channel.send(chunk)
+
+    async def on_message(self, message: Message):
+        """
+        Triggers upon any message sent to the guild
+
+        :param message: A discord Message object
+        """
+        # Never reply to yourself
+        if message.author == self.user:
+            return
+
+        # Grab channel history
+        history_list = []
+        channel_history = [user async for user in message.channel.history(limit=self.llm_config["history_lines"] + 1)]
+        for history in channel_history:
+            if remove_id(history.content) != remove_id(message.content):
+                history_list.append(history.author.name + ": " + remove_id(history.content))
+        history_list.reverse()
+        history_text = '\n'.join(history_list)
+
+        # Process text or PDF attachments
+        if message.attachments is not None:
+            for attachment in message.attachments:
+                logger.info(f"Found attachment {attachment.filename}, adding to rag database")
+                if 'text' in attachment.content_type:
+                    try:
+                        file_content = await attachment.read()
+                        file_string = file_content.decode('utf-8')
+                        self.llm.merge_to_db(attachment.filename, attachment.size, [Document(page_content=file_string)])
+                    except UnicodeDecodeError:
+                       logger.warning(f"Cannot decode {attachment.filename} as UTF-8, filetype {attachment.content_type} may be unknown")
+                elif attachment.content_type == 'application/pdf':
+                    filepath = Path('tmp')
+                    try:
+                        await attachment.save(fp=filepath)
+                        loader = PyPDFLoader(filepath)
+                        self.llm.merge_to_db(attachment.filename, attachment.size, loader.load())
+                    except Exception as e:
+                        logger.error(f"Parsing {attachment.filename} resulted in {e}")
+                        await message.channel.send(f"I had an error when trying the read the PDF {attachment.filename}")
+                        break
+                    try:
+                        os.remove(filepath)
+                    except FileNotFoundError:
+                        pass
+                else:
+                    await message.channel.send(f"I couldn't recognize the file format you attached: {attachment.content_type}.\n"
+                                         f"I currently support content types of `text` and `pdf`.")
+                    return
+
+        if self.user.mentioned_in(message):
+            logger.info(f"Direct message received from author={message.author.name}, generating response...")
+            await self._respond(message, history_text)
+
+    async def on_command_error(self, context: Context, error: commands) -> None:
         """
         The code in this event is executed every time a normal valid command catches an error.
 
@@ -224,7 +221,6 @@ class Bot(commands.Bot):
         elif isinstance(error, commands.MissingRequiredArgument):
             embed = Embed(
                 title="Error!",
-                # We need to capitalize because the command arguments have no capital letter in the code and they are the first word in the error message.
                 description=str(error).capitalize(),
                 color=0xE02B2B,
             )

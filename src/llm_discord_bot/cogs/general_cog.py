@@ -27,11 +27,11 @@ class General(commands.Cog, name="general"):
             if i == "owner" and not (await self.bot.is_owner(context.author)):
                 continue
             cog = self.bot.get_cog(i.lower())
-            commands = cog.get_commands()
+            coms = cog.get_commands()
             data = []
-            for command in commands:
-                description = command.description.partition("\n")[0]
-                data.append(f"{command.name} - {description}")
+            for com in coms:
+                description = com.description.partition("\n")[0]
+                data.append(f"{com.name} - {description}")
             help_text = "\n".join(data)
             embed.add_field(
                 name=i.capitalize(), value=f"```{help_text}```", inline=False
@@ -55,7 +55,6 @@ class General(commands.Cog, name="general"):
             color=0xBEBEFE,
         )
         embed.set_author(name="Bot Information")
-        embed.add_field(name="Owner:", value="virxx", inline=True)
         embed.add_field(name="Rag Enabled:", value=self.bot.rag)
         embed.add_field(
             name="Python Version:", value=f"{platform.python_version()}", inline=True

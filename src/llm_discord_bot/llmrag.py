@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 from typing import List
 import torch
 from transformers import AutoTokenizer, pipeline, BitsAndBytesConfig, AutoModelForCausalLM
-# from ragatouille import RAGPretrainedModel
 from datasets import load_dataset
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
@@ -16,61 +15,15 @@ from langchain_community.vectorstores.utils import DistanceStrategy
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 
+from llm_discord_bot.constants import RAG_PROMPT, PROMPT, MARKDOWN_SEPARATORS, DEFAULT_INDEX, DATASET_LIST
+
 # region logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("LLM_RAG")
 # endregion
 
-# region constants
-MARKDOWN_SEPARATORS = [
-    "\n#{1,6} ",
-    "```\n",
-    "\n\\*\\*\\*+\n",
-    "\n---+\n",
-    "\n___+\n",
-    "\n\n",
-    "\n",
-    " ",
-    "",
-]
-RAG_PROMPT = [
-    {
-        "role": "system",
-        "content": """{identity}
-
-Give a comprehensive answer to the question using, but not limited to, the information in the context.
-Respond only to the question asked, response should be concise and relevant to the question.
-If the answer cannot be deduced from the context, say that the local database doesn't have relevant information, and provide an answer to the question using your own knowledge.""",
-    },
-    {
-        "role": "user",
-        "content": """Context:
-{context}
----
-Now here is the question you need to answer.
-
-Question: {query}""",
-    },
-]
-PROMPT = [
-    {
-        "role": "system",
-        "content": """{identity}
-        
-        Give a comprehensive answer to the question. 
-        Respond only to the question asked, response should be concise and relevant to the question.""",
-    },
-    {
-        "role": "user",
-        "content":  """Question: {query}""",
-    }
-]
-# endregion
-
 pd.set_option("display.max_colwidth", None)
 load_dotenv()
-DATASET_LIST = "datasets.json"
-DEFAULT_INDEX = "index"
 
 # region classes
 class LlmRag:
@@ -78,20 +31,20 @@ class LlmRag:
         self,
         llm_model_name: str = "meta-llama/Llama-3.2-3B-Instruct",
         embedding_model_name: str = "thenlper/gte-small",
-        # rerank_model_name: str | None = "colbert-ir/colbertv2.0",
     ):
         self.embedding_model_name = embedding_model_name
         self.embedding_model = self._initialize_embedding_model(embedding_model_name)
         self.database_path, self.loaded_index, self.db_entries = self._initialize_database(embedding_model=self.embedding_model)
         self.llm = self._initialize_llm(model_name=llm_model_name)
-        # if rerank_model_name is not None:
-        #     self.reranker = RAGPretrainedModel.from_pretrained(rerank_model_name)
-        # else:
-        self.reranker = None
 
 
     @staticmethod
     def _initialize_embedding_model(model_name):
+        """
+        Load Huggingface embedding model
+
+        :param model_name: THe Huggingface model to use for embeddings
+        """
         logger.info(f"Loading embedding {model_name=}")
         return HuggingFaceEmbeddings(
             model_name=model_name,
@@ -103,6 +56,11 @@ class LlmRag:
     @staticmethod
     def _initialize_database(embedding_model: HuggingFaceEmbeddings,
                              ) -> (FAISS, dict[str]):
+        """
+        Load database if it exists, else create a new one
+
+        :param embedding_model: Huggingface model to convert raw data to vectors
+        """
         try:
             index_path = Path(os.getenv("INDEX_PATH"))
         except Exception as e:
@@ -124,6 +82,11 @@ class LlmRag:
         return index_path, local_index, dataset_list
 
     def _initialize_llm(self, model_name):
+        """
+        Quantize model, load it, and apply default and rag chat templates
+
+        :param model_name: Huggingface name of the model
+        """
         logger.info("Initializing bitsandbytesconfig...")
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -153,11 +116,15 @@ class LlmRag:
     @staticmethod
     def split_documents(
             chunk_size: int,
-            loaded_dataset: List[Document],
+            documents: List[Document],
             tokenizer_name: str
     ) -> List[Document]:
         """
-        Split documents into chunks of maximum size `chunk_size` tokens and return a list of documents.
+        Split documents into chunks of maximum size `chunk_size` tokens and return a list of documents
+
+        :param chunk_size: Maximum chunk size in tokens
+        :param documents: The loaded data to split
+        :param tokenizer_name: Pretrained model for tokenizing
         """
         logger.info(f"Initializing text splitter with {tokenizer_name=}...")
         text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
@@ -170,7 +137,7 @@ class LlmRag:
         )
 
         logger.info(f"Processing docs in knowledge base...")
-        docs_processed = text_splitter.split_documents(loaded_dataset)
+        docs_processed = text_splitter.split_documents(documents)
 
         # Remove duplicates
         unique_texts = {}
@@ -186,6 +153,13 @@ class LlmRag:
                             huggingface_dataset: str,
                             split: str,
                             column: str):
+        """
+        Adds Huggingface dataset to database
+
+        :param huggingface_dataset: Huggingface dataset path
+        :param split: Dataset split name to use
+        :param column: Dataset column name to use
+        """
         logger.info(f"Loading dataset `{huggingface_dataset}` on {split=} with {column=}")
         ds = load_dataset(path=huggingface_dataset, split=split, num_proc=8)
         if column not in ds[0]:
@@ -202,11 +176,11 @@ class LlmRag:
         Merges the file or dataset into the database
 
         :param data_name: The filename or name of the dataset
-        :data_size: The size of the data in bytes
-        :data: The data as a list of Langchain Document(s)
+        :param data_size: The size of the data in bytes
+        :param data: The data as a list of Langchain Document(s)
         """
         docs_processed = self.split_documents(chunk_size=512,
-                                              loaded_dataset=data,
+                                              documents=data,
                                               tokenizer_name=self.embedding_model_name)
 
         logger.info(f"Creating vector store of {data_name}")
@@ -225,7 +199,7 @@ class LlmRag:
 
 
     def drop_database(self):
-        """Deletes all indexes and dataset list"""
+        """Deletes the index and dataset list"""
         index_path = Path(os.getenv("INDEX_PATH"))
         for filename in os.listdir(index_path):
             file_path = os.path.join(index_path, filename)
@@ -243,6 +217,7 @@ class LlmRag:
             logger.info(f"Deleting {data}")
         self.db_entries = None
 
+
     def response(
         self,
         query: str,
@@ -252,37 +227,45 @@ class LlmRag:
         num_docs_final: int = 5,
         rag: bool = False
     ) -> tuple[str, List[Document] | None]:
+        """
+        Generate a llm response
+
+        :param query: Query for the llm
+        :param context: Discord channel history
+        :param identity: llm configured identity
+        :param num_retrieved_docs: Maximum number of docs to retrieve from the RAG database
+        :param num_docs_final: Maximum number of docs presented as context to the llm
+        :param rag: Whether to add database information into the prompt
+        """
+        relevant_docs = None
         if rag:
             if self.loaded_index is None:
                 logger.error("Did not provide any datasets to initialize local index")
                 return "Couldn't reply with RAG: Database is empty.\nPopulate the database with Huggingface datasets or upload documents", None
-            if query == "":
-                logger.warning(f"Empty query, not finding searching database for documents")
+            if not query:
+                logger.warning(f"Empty query, cannot query database")
             else:
                 logger.info(f"Retrieving documents using {query=}\n")
                 relevant_docs = self.loaded_index.similarity_search(query=query, k=num_retrieved_docs)
-                relevant_docs = [doc.page_content for doc in relevant_docs]  # Keep only the text
-
-                # Optionally rerank results
-                if self.reranker:
-                    logger.info("Reranking documents...")
-                    relevant_docs = self.reranker.rerank(query, relevant_docs, k=num_docs_final)
-                    relevant_docs = [doc["content"] for doc in relevant_docs]
-
-                relevant_docs = relevant_docs[:num_docs_final]
+                # relevant_docs = [doc.page_content for doc in relevant_docs]  # Keep only the text
+                # relevant_docs = relevant_docs[:num_docs_final]
 
                 # Build the final prompt
                 context += "\nExtracted documents:\n"
-                context += "".join([f"\n:::Document {str(i)}:::\n" + doc for i, doc in enumerate(relevant_docs)])
+                for i, doc in enumerate(relevant_docs):
+                    if i < num_docs_final:
+                        context += f"\n:::Document {doc.title}:::\n{doc.page_content}"
+                    else:
+                        break
+                # context += "".join([f"\n:::Document {str(i)}:::\n" + doc for i, doc in enumerate(relevant_docs)])
 
             prompt = self.rag_prompt.format(identity=identity, query=query, context=context)
         else:
             prompt = self.prompt.format(identity=identity, query=query, context=context)
-            relevant_docs = None
 
-        # Redact an answer
         logger.info(f"PROMPT:\n{prompt}")
         answer = self.llm(prompt)[0]["generated_text"]
         logger.info(f"ANSWER:\n{answer}")
+
         return answer, relevant_docs
     # endregion
