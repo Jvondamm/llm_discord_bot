@@ -50,8 +50,8 @@ Repository = "https://github.com/Jvondamm/llm_discord_bot"
 
 [tool.uv.sources]
 torch = [
-    { index = "torch-gpu", marker = "platform_system == 'Linux'"},
-    { index = "torch-gpu", marker = "platform_system == 'Windows'"}
+    { index = "torch-gpu", marker = "platform_system == 'linux'"},
+    { index = "torch-gpu", marker = "platform_system == 'windows'"}
 ]
 
 [[tool.uv.index]]
@@ -69,5 +69,4 @@ exclude = [
     "config.json"
 ]
 
-log_format = "%(asctime)s.%(msecs)%03d %(levelname)-8s %(name)-15s [%(filename)s:%(lineno)d] %(message)s"
-log_date_format = "%Y-%m-%d %H:%M:%S"
+
