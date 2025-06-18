@@ -16,6 +16,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
 from transformers import pipeline
 
+from llm_discord_bot.constants import DEFAULT_CONFIG
 from llm_discord_bot.utils import filter_mentions, split_message, remove_id
 
 logger = logging.getLogger("BOT")
@@ -60,8 +61,11 @@ class Bot(commands.Bot):
             )
 
     def load_config(self, config_file):
-        with open(config_file) as f:
-            self.llm_config = json.load(f)
+        if config_file is not None:
+            with open(config_file) as f:
+                self.llm_config = json.load(f)
+        else:
+            self.llm_config = DEFAULT_CONFIG
 
 
     async def load_cogs(self) -> None:
