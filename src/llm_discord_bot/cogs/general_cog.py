@@ -1,7 +1,6 @@
 import platform
 import os
-import discord
-from discord import app_commands
+from discord import app_commands, Object, Embed
 from discord.ext import commands
 from discord.ext.commands import Context
 
@@ -13,14 +12,14 @@ class General(commands.Cog, name="general"):
     @commands.hybrid_command(
         name="help", description="List all loaded commands."
     )
-    @app_commands.guilds(discord.Object(id=os.getenv("DISCORD_GUILD_ID")))
+    @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
     async def help(self, context: Context) -> None:
         """
         List all loaded commands
 
         :param context: command context
         """
-        embed = discord.Embed(
+        embed = Embed(
             title="Help", description="List of available commands:", color=0xBEBEFE
         )
         for i in self.bot.cogs:
@@ -42,15 +41,15 @@ class General(commands.Cog, name="general"):
         name="botinfo",
         description="Get bot configuration, llm models, owner, etc...",
     )
-    @app_commands.guilds(discord.Object(id=os.getenv("DISCORD_GUILD_ID")))
+    @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
     async def info(self, context: Context) -> None:
         """
         Get bot configuration, llm models, owner, etc...
 
         :param context: command context
         """
-        embed = discord.Embed(
-            description=f"Generating conversation with model: {self.bot.llm.llm.model}\n"
+        embed = Embed(
+            description=f"Generating conversation with model: {self.bot.llm.llm_model_name}\n"
                         f"Generating embeddings with model: {self.bot.llm.embedding_model_name}",
             color=0xBEBEFE,
         )
@@ -69,16 +68,16 @@ class General(commands.Cog, name="general"):
 
     @commands.hybrid_command(
         name="ping",
-        description="See if bot is online and it's latency"
+        description="Check if bot is online and see it's latency if so"
     )
-    @app_commands.guilds(discord.Object(id=os.getenv("DISCORD_GUILD_ID")))
+    @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
     async def ping(self, context: Context) -> None:
         """
         See if bot is online and it's latency
 
         :param context: command context
         """
-        embed = discord.Embed(
+        embed = Embed(
             title="🏓 Pong!",
             description=f"Bot latency:{round(self.bot.latency * 1000)}ms.",
             color=0xBEBEFE,

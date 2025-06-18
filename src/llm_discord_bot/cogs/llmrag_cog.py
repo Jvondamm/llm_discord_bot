@@ -18,12 +18,12 @@ class ConfirmView(ui.View):
         self.value = None
 
     @ui.button(label="Confirm", style=ButtonStyle.green)
-    async def confirm_button(self, interaction: Interaction, button: ui.Button):
+    async def confirm_button(self, interaction: Interaction, button: ui.Button):  # params are needed for view
         self.value = True
         self.stop()
 
     @ui.button(label="Cancel", style=ButtonStyle.red)
-    async def cancel_button(self, interaction: Interaction, button: ui.Button):
+    async def cancel_button(self, interaction: Interaction, button: ui.Button):  # params are needed for view
         self.value = False
         self.stop()
 

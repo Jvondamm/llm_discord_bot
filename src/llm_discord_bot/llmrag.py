@@ -35,6 +35,7 @@ class LlmRag:
         self.embedding_model_name = embedding_model_name
         self.embedding_model = self._initialize_embedding_model(embedding_model_name)
         self.database_path, self.loaded_index, self.db_entries = self._initialize_database(embedding_model=self.embedding_model)
+        self.llm_model_name = llm_model_name
         self.llm = self._initialize_llm(model_name=llm_model_name)
 
 

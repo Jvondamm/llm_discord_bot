@@ -62,8 +62,11 @@ class Bot(commands.Bot):
 
     def load_config(self, config_file):
         if config_file is not None:
-            with open(config_file) as f:
-                self.llm_config = json.load(f)
+            try:
+                with open(config_file) as f:
+                    self.llm_config = json.load(f)
+            except FileNotFoundError as e:
+                raise Exception(f"Could not find {config_file=}") from e
         else:
             self.llm_config = DEFAULT_CONFIG
 

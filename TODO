@@ -1,8 +1,7 @@
-add reranking?
-function calling for multiple APIs, crypto, spotify, builtin discord controls, ect...
-switch to chroma db? - might be able to manage documents better...
-
-brave api with rag?
+ensure works on mac
+populate README
+get gif?
+FINAL - push tag and package to github!
 
 
 https://github.com/kkrypt0nn/Python-Discord-Bot-Template/blob/main/bot.py

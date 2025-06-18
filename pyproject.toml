@@ -41,7 +41,7 @@ dev = [
 ]
 
 [project.scripts]
-dbot = "llm_discord_bot.__main__:main"
+ldbot = "llm_discord_bot.__main__:main"
 
 [project.urls]
 Repository = "https://github.com/Jvondamm/llm_discord_bot"

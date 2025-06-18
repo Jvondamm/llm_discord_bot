@@ -1,10 +1,8 @@
-If not running with uv, install dependencies with 
+Install the package with
 
-pip install .
+```commandline
 
-To develop, install the extra dependencies with
-
-pip install .[dev]
+```
 
 If you get 'Torch not compiled with CUDA enabled'
 then navigate to https://pytorch.org/get-started/locally/ and select the correct options for your system (run nvcc --version) to figure out your CUDA version,
