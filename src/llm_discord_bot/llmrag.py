@@ -2,12 +2,13 @@ import logging
 import os
 import shutil
 import json
+from sys import platform
 from pathlib import Path
-import pandas as pd
+from pandas import set_option
 from dotenv import load_dotenv
 from typing import List
-import torch
-from transformers import AutoTokenizer, pipeline, BitsAndBytesConfig, AutoModelForCausalLM
+from torch import bfloat16, cuda
+from transformers import AutoTokenizer, pipeline, AutoModelForCausalLM
 from datasets import load_dataset
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
@@ -22,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("LLM_RAG")
 # endregion
 
-pd.set_option("display.max_colwidth", None)
+set_option("display.max_colwidth", None)
 load_dotenv()
 
 # region classes
@@ -47,10 +48,11 @@ class LlmRag:
         :param model_name: THe Huggingface model to use for embeddings
         """
         logger.info(f"Loading embedding {model_name=}")
+        device = "cuda" if cuda.is_available() else "cpu"
         return HuggingFaceEmbeddings(
             model_name=model_name,
             multi_process=True,
-            model_kwargs={"device": "cuda"},
+            model_kwargs={"device": device},
             encode_kwargs={"normalize_embeddings": True}
         )
 
@@ -89,12 +91,18 @@ class LlmRag:
         :param model_name: Huggingface name of the model
         """
         logger.info("Initializing bitsandbytesconfig...")
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16,
-        )
+        if platform == "darwin":
+            # bitsandbytes not yet supported for mac
+            # https://github.com/bitsandbytes-foundation/bitsandbytes/issues/252
+            bnb_config = None
+        else:
+            from transformers import BitsAndBytesConfig
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=bfloat16,
+            )
 
         logger.info(f"Loading model from {model_name=}")
         model = AutoModelForCausalLM.from_pretrained(model_name, quantization_config=bnb_config)
@@ -248,8 +256,6 @@ class LlmRag:
             else:
                 logger.info(f"Retrieving documents using {query=}\n")
                 relevant_docs = self.loaded_index.similarity_search(query=query, k=num_retrieved_docs)
-                # relevant_docs = [doc.page_content for doc in relevant_docs]  # Keep only the text
-                # relevant_docs = relevant_docs[:num_docs_final]
 
                 # Build the final prompt
                 context += "\nExtracted documents:\n"
@@ -258,7 +264,6 @@ class LlmRag:
                         context += f"\n:::Document {doc.title}:::\n{doc.page_content}"
                     else:
                         break
-                # context += "".join([f"\n:::Document {str(i)}:::\n" + doc for i, doc in enumerate(relevant_docs)])
 
             prompt = self.rag_prompt.format(identity=identity, query=query, context=context)
         else:

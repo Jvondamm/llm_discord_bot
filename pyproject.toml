@@ -23,12 +23,13 @@ dependencies = [
     "faiss-cpu",
     "langchain-community",
     "langchain-huggingface",
-    "bitsandbytes",
+    "bitsandbytes; sys_platform != 'darwin'",
     "table2ascii",
     "faiss-cpu",
     "torch",
     "torchvision",
-    "torchaudio"
+    "torchaudio",
+    "pip-system-certs; sys_platform == 'darwin'"  # Sometimes had SSL cert issues on mac OS only
 ]
 
 [project.optional-dependencies]
