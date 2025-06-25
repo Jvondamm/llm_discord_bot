@@ -9,9 +9,7 @@ class General(commands.Cog, name="general"):
     def __init__(self, bot) -> None:
         self.bot = bot
 
-    @commands.hybrid_command(
-        name="help", description="List all loaded commands."
-    )
+    @commands.hybrid_command(name="help", description="List all loaded commands.")
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
     async def help(self, context: Context) -> None:
         """
@@ -19,9 +17,7 @@ class General(commands.Cog, name="general"):
 
         :param context: command context
         """
-        embed = Embed(
-            title="Help", description="List of available commands:", color=0xBEBEFE
-        )
+        embed = Embed(title="Help", description="List of available commands:", color=0xBEBEFE)
         for i in self.bot.cogs:
             if i == "owner" and not (await self.bot.is_owner(context.author)):
                 continue
@@ -32,9 +28,7 @@ class General(commands.Cog, name="general"):
                 description = com.description.partition("\n")[0]
                 data.append(f"{com.name} - {description}")
             help_text = "\n".join(data)
-            embed.add_field(
-                name=i.capitalize(), value=f"```{help_text}```", inline=False
-            )
+            embed.add_field(name=i.capitalize(), value=f"```{help_text}```", inline=False)
         await context.send(embed=embed)
 
     @commands.hybrid_command(
@@ -50,14 +44,12 @@ class General(commands.Cog, name="general"):
         """
         embed = Embed(
             description=f"Generating conversation with model: {self.bot.llm.llm_model_name}\n"
-                        f"Generating embeddings with model: {self.bot.llm.embedding_model_name}",
+            f"Generating embeddings with model: {self.bot.llm.embedding_model_name}",
             color=0xBEBEFE,
         )
         embed.set_author(name="Bot Information")
         embed.add_field(name="Rag Enabled:", value=self.bot.rag)
-        embed.add_field(
-            name="Python Version:", value=f"{platform.python_version()}", inline=True
-        )
+        embed.add_field(name="Python Version:", value=f"{platform.python_version()}", inline=True)
         embed.add_field(
             name="Prefix:",
             value=f"/ (slash commands)",
@@ -66,10 +58,7 @@ class General(commands.Cog, name="general"):
         embed.set_footer(text=f"Requested by: {context.author}")
         await context.send(embed=embed)
 
-    @commands.hybrid_command(
-        name="ping",
-        description="Check if bot is online and see it's latency if so"
-    )
+    @commands.hybrid_command(name="ping", description="Check if bot is online and see it's latency if so")
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
     async def ping(self, context: Context) -> None:
         """
@@ -83,6 +72,7 @@ class General(commands.Cog, name="general"):
             color=0xBEBEFE,
         )
         await context.send(embed=embed)
+
 
 async def setup(bot) -> None:
     await bot.add_cog(General(bot))

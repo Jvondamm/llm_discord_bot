@@ -41,10 +41,10 @@ PROMPT = [
     {
         "role": "user",
         "content": """Question: {query}""",
-    }
+    },
 ]
 DEFAULT_CONFIG = {
     "identity": "You are a helpful assistant named llama, you are an expert in many subjects and provide carefully researched, thoughtful answers",
     "temperature": 0.7,
-    "history_lines": 5
+    "history_lines": 5,
 }

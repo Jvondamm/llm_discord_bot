@@ -24,6 +24,6 @@ class Admin(commands.Cog, name="admin"):
         await context.send(embed=Embed(description="Quitting, see ya later...", color=0xBEBEFE))
         await self.bot.close()
 
+
 async def setup(bot) -> None:
     await bot.add_cog(Admin(bot))
-

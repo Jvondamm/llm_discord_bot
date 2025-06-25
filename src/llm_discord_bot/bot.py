@@ -56,9 +56,7 @@ class Bot(commands.Bot):
                 f"Executed {executed_command} command in {context.guild.name} (ID: {context.guild.id}) by {context.author} (ID: {context.author.id})"
             )
         else:
-            logger.info(
-                f"Executed {executed_command} command by {context.author} (ID: {context.author.id}) in DMs"
-            )
+            logger.info(f"Executed {executed_command} command by {context.author} (ID: {context.author.id}) in DMs")
 
     def load_config(self, config_file):
         if config_file is not None:
@@ -70,7 +68,6 @@ class Bot(commands.Bot):
         else:
             self.llm_config = DEFAULT_CONFIG
 
-
     async def load_cogs(self) -> None:
         """Executes on bot start, load all cogs as extensions within cogs/ dir"""
         for file in os.listdir(f"{os.path.realpath(os.path.dirname(__file__))}/cogs"):
@@ -81,18 +78,14 @@ class Bot(commands.Bot):
                     logger.info(f"Loaded extension '{extension}'")
                 except Exception as e:
                     exception = f"{type(e).__name__}: {e}"
-                    logger.error(
-                        f"Failed to load extension {extension}\n{exception}"
-                    )
+                    logger.error(f"Failed to load extension {extension}\n{exception}")
 
     async def setup_hook(self) -> None:
         """Loads cogs and syncs commands"""
         logger.info(f"Logged in as {self.user.name}")
         logger.info(f"discord.py API version: {__discord_version__}")
         logger.info(f"Python version: {python_version()}")
-        logger.info(
-            f"Running on: {system()} {release()} ({os.name})"
-        )
+        logger.info(f"Running on: {system()} {release()} ({os.name})")
         await self.load_cogs()
         try:
             synced = await self.tree.sync(guild=self.guild)
@@ -109,7 +102,9 @@ class Bot(commands.Bot):
         """
         async with message.channel.typing():
             prompt = remove_id(message.content)
-            bot_response, docs = await asyncio.to_thread(self.llm.response, query=prompt, context=history_text, identity=self.llm_config["identity"], rag=self.rag)
+            bot_response, docs = await asyncio.to_thread(
+                self.llm.response, query=prompt, context=history_text, identity=self.llm_config["identity"], rag=self.rag
+            )
             filtered_bot_response = filter_mentions(bot_response)
             if docs:
                 for i, doc in enumerate(docs):
@@ -144,21 +139,21 @@ class Bot(commands.Bot):
             if remove_id(history.content) != remove_id(message.content):
                 history_list.append(history.author.name + ": " + remove_id(history.content))
         history_list.reverse()
-        history_text = '\n'.join(history_list)
+        history_text = "\n".join(history_list)
 
         # Process text or PDF attachments
         if message.attachments is not None:
             for attachment in message.attachments:
                 logger.info(f"Found attachment {attachment.filename}, adding to rag database")
-                if 'text' in attachment.content_type:
+                if "text" in attachment.content_type:
                     try:
                         file_content = await attachment.read()
-                        file_string = file_content.decode('utf-8')
+                        file_string = file_content.decode("utf-8")
                         self.llm.merge_to_db(attachment.filename, attachment.size, [Document(page_content=file_string)])
                     except UnicodeDecodeError:
-                       logger.warning(f"Cannot decode {attachment.filename} as UTF-8, filetype {attachment.content_type} may be unknown")
-                elif attachment.content_type == 'application/pdf':
-                    filepath = Path('tmp')
+                        logger.warning(f"Cannot decode {attachment.filename} as UTF-8, filetype {attachment.content_type} may be unknown")
+                elif attachment.content_type == "application/pdf":
+                    filepath = Path("tmp")
                     try:
                         await attachment.save(fp=filepath)
                         loader = PyPDFLoader(filepath)
@@ -172,8 +167,10 @@ class Bot(commands.Bot):
                     except FileNotFoundError:
                         pass
                 else:
-                    await message.channel.send(f"I couldn't recognize the file format you attached: {attachment.content_type}.\n"
-                                         f"I currently support content types of `text` and `pdf`.")
+                    await message.channel.send(
+                        f"I couldn't recognize the file format you attached: {attachment.content_type}.\n"
+                        f"I currently support content types of `text` and `pdf`."
+                    )
                     return
 
         if self.user.mentioned_in(message):
@@ -197,9 +194,7 @@ class Bot(commands.Bot):
             )
             await context.send(embed=embed)
         elif isinstance(error, commands.NotOwner):
-            embed = Embed(
-                description="You are not the owner of the bot!", color=0xE02B2B
-            )
+            embed = Embed(description="You are not the owner of the bot!", color=0xE02B2B)
             await context.send(embed=embed)
             if context.guild:
                 logger.warning(
@@ -211,17 +206,13 @@ class Bot(commands.Bot):
                 )
         elif isinstance(error, commands.MissingPermissions):
             embed = Embed(
-                description="You are missing the permission(s) `"
-                + ", ".join(error.missing_permissions)
-                + "` to execute this command!",
+                description="You are missing the permission(s) `" + ", ".join(error.missing_permissions) + "` to execute this command!",
                 color=0xE02B2B,
             )
             await context.send(embed=embed)
         elif isinstance(error, commands.BotMissingPermissions):
             embed = Embed(
-                description="I am missing the permission(s) `"
-                + ", ".join(error.missing_permissions)
-                + "` to fully perform this command!",
+                description="I am missing the permission(s) `" + ", ".join(error.missing_permissions) + "` to fully perform this command!",
                 color=0xE02B2B,
             )
             await context.send(embed=embed)

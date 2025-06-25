@@ -1,5 +1,8 @@
 ensure works on mac
 populate README
+    ensure index works without being set
+    check defaults for config file - should it reside there?
+    ensure huggingface token works
 get gif?
 FINAL - push tag and package to github!
 

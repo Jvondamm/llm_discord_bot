@@ -12,6 +12,7 @@ load_dotenv()
 
 logger = logging.getLogger("DATASET_COG")
 
+
 class ConfirmView(ui.View):
     def __init__(self):
         super().__init__()
@@ -27,6 +28,7 @@ class ConfirmView(ui.View):
         self.value = False
         self.stop()
 
+
 class Dataset(commands.Cog, name="llm"):
     def __init__(self, bot) -> None:
         self.bot = bot
@@ -36,11 +38,7 @@ class Dataset(commands.Cog, name="llm"):
         description="Add a HuggingFace Dataset to the bot's database, optionally provide a split and subset.",
     )
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
-    async def add_dataset(self,
-                          context: Context,
-                          dataset: str,
-                          split: str = "train",
-                          column: str = "text") -> None:
+    async def add_dataset(self, context: Context, dataset: str, split: str = "train", column: str = "text") -> None:
         """
         Add a HuggingFace Dataset to the bot's database. Ensure you trust the dataset first!
 
@@ -54,7 +52,9 @@ class Dataset(commands.Cog, name="llm"):
             t_start = time.time()
             errors = await asyncio.to_thread(self.bot.llm.merge_dataset_to_db, huggingface_dataset=dataset, split=split, column=column)
             if not errors:
-                await context.send(embed=Embed(description=f"Finished Loading {dataset=} in {round(time.time() - t_start, 1)} seconds", color=0xD75BF4))
+                await context.send(
+                    embed=Embed(description=f"Finished Loading {dataset=} in {round(time.time() - t_start, 1)} seconds", color=0xD75BF4)
+                )
             else:
                 await context.send(embed=Embed(description=errors))
         else:
@@ -74,7 +74,6 @@ class Dataset(commands.Cog, name="llm"):
         self.bot.rag = not self.bot.rag
         logger.info(f"Changed rag to {self.bot.rag}")
         await context.send(embed=Embed(description=f"{'Enabled' if self.bot.rag else 'Disabled'} rag"))
-
 
     @commands.hybrid_command(
         name="db_wipe",
@@ -100,7 +99,6 @@ class Dataset(commands.Cog, name="llm"):
         else:
             await context.send(embed=Embed(description="Cancelled"))
 
-
     @commands.hybrid_command(
         name="db_info",
         description="Get the list of Huggingface datasets and their sizes in the database",
@@ -118,9 +116,10 @@ class Dataset(commands.Cog, name="llm"):
             body=body,
             style=PresetStyle.thin_compact,
             alignments=[Alignment.LEFT, Alignment.RIGHT],
-            footer=["Total", f"{round(tot_size, 2)} mB"]
+            footer=["Total", f"{round(tot_size, 2)} mB"],
         )
         await context.send(f"```\n{output}\n```")
+
 
 async def setup(bot) -> None:
     await bot.add_cog(Dataset(bot))

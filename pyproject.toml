@@ -29,6 +29,7 @@ dependencies = [
     "torch",
     "torchvision",
     "torchaudio",
+    "huggingface_hub",
     "pip-system-certs; sys_platform == 'darwin'"  # Sometimes had SSL cert issues on mac OS only
 ]
 
