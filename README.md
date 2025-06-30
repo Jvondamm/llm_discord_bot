@@ -23,7 +23,7 @@ The bot requires:
 and optionally takes:
 
 - [Huggingface Model Path](https://huggingface.co/models) for the model that will be used, defaults to `meta-llama/Llama-3.2-3B-Instruct`
-- Index (Database) Path for storing documents for RAG, defaults to `~/index`
+- Index (Database) Path for storing documents for RAG, defaults to `/home/index`
 - Llm Config File Path to set the system prompt, temperature, and chat history, defaults are in the `config.json`
 
 These can be added to your `$PATH`, or more simply stored in a `.env` file like the example in the repo. 

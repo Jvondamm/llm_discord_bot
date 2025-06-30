@@ -62,7 +62,7 @@ class LlmRag:
 
         :param embedding_model: Huggingface model to convert raw data to vectors
         """
-        index_path = Path(os.getenv("INDEX_PATH") or "~/index")
+        index_path = Path(os.getenv("INDEX_PATH") or os.path.expanduser("~") / Path("index"))
         index_path.mkdir(parents=True, exist_ok=True)
         local_index, dataset_list = None, {}
         if os.path.exists(index_path / Path(DEFAULT_INDEX + ".faiss")):

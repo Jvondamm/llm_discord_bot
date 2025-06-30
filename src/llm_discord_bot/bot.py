@@ -28,7 +28,7 @@ intents.message_content = True
 
 class Bot(commands.Bot):
     def __init__(self, llm, config_file):
-        self.prefix: str = os.getenv("DISCORD_PREFIX")
+        self.prefix: str = "!"
         self.rag: bool = False
         self.llm: pipeline = llm
         self.llm_config: json = None
