@@ -34,7 +34,7 @@ class Dataset(commands.Cog, name="llm"):
         self.bot = bot
 
     @commands.hybrid_command(
-        name="db_add",
+        name="add",
         description="Add a HuggingFace Dataset to the bot's database, optionally provide a split and subset.",
     )
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
@@ -76,8 +76,8 @@ class Dataset(commands.Cog, name="llm"):
         await context.send(embed=Embed(description=f"{'Enabled' if self.bot.rag else 'Disabled'} rag"))
 
     @commands.hybrid_command(
-        name="db_wipe",
-        description="Wipe database of all datasets",
+        name="wipe",
+        description="Wipe database of all datasets and documents",
     )
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
     async def wipe_database(self, context: Context) -> None:
@@ -100,7 +100,7 @@ class Dataset(commands.Cog, name="llm"):
             await context.send(embed=Embed(description="Cancelled"))
 
     @commands.hybrid_command(
-        name="db_info",
+        name="dbinfo",
         description="Get the list of Huggingface datasets and their sizes in the database",
     )
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))

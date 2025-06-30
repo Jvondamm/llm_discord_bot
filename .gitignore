@@ -6,3 +6,9 @@
 
 # Ignore all cached pyc files
 __pycache__/
+
+# TODO file
+TODO
+
+# Index if created in root dir
+index/

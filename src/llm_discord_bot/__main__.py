@@ -6,6 +6,8 @@ from huggingface_hub import login
 
 
 def main():
+
+    # load environment variables
     load_dotenv()
     config_file = os.getenv("CONFIG_FILE")
     discord_token = os.getenv("DISCORD_TOKEN")
@@ -15,7 +17,10 @@ def main():
     elif huggingface_token is None:
         raise EnvironmentError("Could not find environment variable for `HUGGINGFACE_TOKEN`, exiting")
 
+    # login to huggingface
     login(token=huggingface_token)
+
+    # initialize the llm + rag model than run the discord bot
     bot = Bot(llm=LlmRag(llm_model_name=os.getenv("MODEL")), config_file=config_file)
     bot.run(os.getenv("DISCORD_TOKEN"))
 
