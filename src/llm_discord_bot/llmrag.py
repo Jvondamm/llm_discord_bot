@@ -162,7 +162,7 @@ class LlmRag:
         ds = load_dataset(path=huggingface_dataset, split=split, num_proc=8)
         if column not in ds[0]:
             return f"Column `{column}` not in `{huggingface_dataset}`, valid columns are {ds[0].keys()}"
-        loaded_ds = [Document(page_content=doc[column]) for doc in ds]
+        loaded_ds = [Document(page_content=doc[column], title=huggingface_dataset) for doc in ds]
         self.merge_to_db(huggingface_dataset, ds.dataset_size, loaded_ds)
 
     def merge_to_db(self, data_name: str, data_size: float, data: List[Document]):
@@ -189,9 +189,8 @@ class LlmRag:
 
     def drop_database(self):
         """Deletes the index and dataset list"""
-        index_path = Path(os.getenv("INDEX_PATH"))
-        for filename in os.listdir(index_path):
-            file_path = os.path.join(index_path, filename)
+        for filename in os.listdir(self.database_path):
+            file_path = os.path.join(self.database_path, filename)
             try:
                 if os.path.isfile(file_path) or os.path.islink(file_path):
                     logger.info(f"Deleting file {file_path}")

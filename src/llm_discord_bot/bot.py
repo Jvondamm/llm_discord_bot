@@ -149,7 +149,7 @@ class Bot(commands.Bot):
                     try:
                         file_content = await attachment.read()
                         file_string = file_content.decode("utf-8")
-                        self.llm.merge_to_db(attachment.filename, attachment.size, [Document(page_content=file_string)])
+                        self.llm.merge_to_db(attachment.filename, attachment.size, [Document(page_content=file_string, title=attachment.filename)])
                     except UnicodeDecodeError:
                         logger.warning(f"Cannot decode {attachment.filename} as UTF-8, filetype {attachment.content_type} may be unknown")
                 elif attachment.content_type == "application/pdf":
@@ -160,7 +160,7 @@ class Bot(commands.Bot):
                         self.llm.merge_to_db(attachment.filename, attachment.size, loader.load())
                     except Exception as e:
                         logger.error(f"Parsing {attachment.filename} resulted in {e}")
-                        await message.channel.send(f"I had an error when trying the read the PDF {attachment.filename}")
+                        await message.channel.send(f"I had an error when trying the read the PDF: {attachment.filename}; {e}")
                         break
                     try:
                         os.remove(filepath)
@@ -172,7 +172,8 @@ class Bot(commands.Bot):
                         f"I currently support content types of `text` and `pdf`."
                     )
                     return
-
+                await message.channel.send(f"Processed {attachment.filename} and merged into database")
+                return
         if self.user.mentioned_in(message):
             logger.info(f"Direct message received from author={message.author.name}, generating response...")
             await self._respond(message, history_text)

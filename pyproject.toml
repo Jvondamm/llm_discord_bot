@@ -23,6 +23,7 @@ dependencies = [
     "langchain-community>=0.3.26",
     "langchain-huggingface>=0.3.0",
     "pip-system-certs>=4.0 ; sys_platform == 'darwin'",
+    "pypdf>=5.7.0",
     "python-dotenv>=1.1.1",
     "sentence-transformers>=4.1.0",
     "table2ascii>=1.1.3",
