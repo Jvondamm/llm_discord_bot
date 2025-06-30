@@ -161,8 +161,6 @@ class Bot(commands.Bot):
                         docs = await loader.aload()
                         for doc in docs:
                             doc.metadata = {"title": attachment.filename}
-                        # documents = [doc.metadata = {"title": attachment.filename} for doc in documents]
-                        # self.llm.merge_to_db(attachment.filename, attachment.size, loader.load())
                         self.llm.merge_to_db(attachment.filename, attachment.size, docs)
                     except Exception as e:
                         logger.error(f"Parsing {attachment.filename} resulted in {e}")

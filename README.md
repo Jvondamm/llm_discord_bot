@@ -24,7 +24,7 @@
 # Llm Discord bot w/RAG
 <div align="left">
   <a>
-    <img src="images/rag_demo.png" alt="Help">
+    <img src="images/rag_demo.png" alt="RAG Demo">
   </a>
 </div>
 
