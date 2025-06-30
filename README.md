@@ -30,6 +30,7 @@ This bot is a proof-of-concept project that a PC with average specs can run a lo
 - Runs any Huggingface model locally 
 - Load Huggingface datasets for RAG
 - Loads text and PDFs for RAG
+- Linux, Mac, and Windows compatible
 
 <!-- USAGE EXAMPLES -->
 ## Usage
