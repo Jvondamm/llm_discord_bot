@@ -128,11 +128,11 @@ class Bot(commands.Bot):
 
         :param message: A discord Message object
         """
-        # Never reply to yourself
+        # never reply to yourself
         if message.author == self.user:
             return
 
-        # Grab channel history
+        # grab channel history
         history_list = []
         channel_history = [user async for user in message.channel.history(limit=self.llm_config["history_lines"] + 1)]
         for history in channel_history:
@@ -141,7 +141,8 @@ class Bot(commands.Bot):
         history_list.reverse()
         history_text = "\n".join(history_list)
 
-        # Process text or PDF attachments
+        # process text or PDF attachments
+        # would have been cleaner to reside in llmrag but the code is async
         if message.attachments is not None:
             for attachment in message.attachments:
                 logger.info(f"Found attachment {attachment.filename}, adding to rag database")
@@ -149,7 +150,7 @@ class Bot(commands.Bot):
                     try:
                         file_content = await attachment.read()
                         file_string = file_content.decode("utf-8")
-                        self.llm.merge_to_db(attachment.filename, attachment.size, [Document(page_content=file_string, title=attachment.filename)])
+                        self.llm.merge_to_db(attachment.filename, attachment.size, [Document(page_content=file_string, metadata={"title": attachment.filename})])
                     except UnicodeDecodeError:
                         logger.warning(f"Cannot decode {attachment.filename} as UTF-8, filetype {attachment.content_type} may be unknown")
                 elif attachment.content_type == "application/pdf":
@@ -157,7 +158,10 @@ class Bot(commands.Bot):
                     try:
                         await attachment.save(fp=filepath)
                         loader = PyPDFLoader(filepath)
-                        self.llm.merge_to_db(attachment.filename, attachment.size, loader.load())
+                        # documents = loader.load()
+                        # documents = [doc.metadata = {"title": attachment.filename} for doc in documents]
+                        # self.llm.merge_to_db(attachment.filename, attachment.size, loader.load())
+                        self.llm.merge_to_db(attachment.filename, attachment.size, loader.aload())
                     except Exception as e:
                         logger.error(f"Parsing {attachment.filename} resulted in {e}")
                         await message.channel.send(f"I had an error when trying the read the PDF: {attachment.filename}; {e}")
@@ -172,7 +176,7 @@ class Bot(commands.Bot):
                         f"I currently support content types of `text` and `pdf`."
                     )
                     return
-                await message.channel.send(f"Processed {attachment.filename} and merged into database")
+                await message.channel.send(f"Processed `{attachment.filename}` and merged into database")
                 return
         if self.user.mentioned_in(message):
             logger.info(f"Direct message received from author={message.author.name}, generating response...")

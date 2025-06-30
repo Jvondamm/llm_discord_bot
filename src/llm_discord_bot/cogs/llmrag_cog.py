@@ -47,6 +47,7 @@ class Dataset(commands.Cog, name="llm"):
         :param split: HF dataset split, defaults to 'train'
         :param column: The column we will store as a document in the DB, all other columns will be disregarded.
         """
+        await context.defer()  # extends required response time
         if dataset not in self.bot.llm.db_entries:
             await context.send(embed=Embed(description=f"Loading {dataset=} on {split=}", color=0xD75BF4))
             t_start = time.time()
@@ -71,6 +72,7 @@ class Dataset(commands.Cog, name="llm"):
 
         :param context: command context
         """
+        await context.defer()  # extends required response time
         self.bot.rag = not self.bot.rag
         logger.info(f"Changed rag to {self.bot.rag}")
         await context.send(embed=Embed(description=f"{'Enabled' if self.bot.rag else 'Disabled'} rag"))
@@ -86,6 +88,7 @@ class Dataset(commands.Cog, name="llm"):
 
         :param context: command context
         """
+        await context.defer()  # extends required response time
         view = ConfirmView()
         message = await context.send("Are you sure?", view=view)
         await view.wait()
@@ -105,6 +108,7 @@ class Dataset(commands.Cog, name="llm"):
     )
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
     async def get_database_size(self, context: Context) -> None:
+        await context.defer()  # extends required response time
         tot_size = 0
         body = []
         if self.bot.llm.db_entries is not None:

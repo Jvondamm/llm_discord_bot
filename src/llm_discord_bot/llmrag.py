@@ -56,7 +56,7 @@ class LlmRag:
     @staticmethod
     def _initialize_database(
         embedding_model: HuggingFaceEmbeddings,
-    ) -> (FAISS, dict[str]):
+    ) -> (Path, FAISS, dict[str]):
         """
         Load database if it exists, else create a new one
 
@@ -64,20 +64,24 @@ class LlmRag:
         """
         index_path = Path(os.getenv("INDEX_PATH") or os.path.expanduser("~") / Path("index"))
         index_path.mkdir(parents=True, exist_ok=True)
-        local_index, dataset_list = None, {}
-        if os.path.exists(index_path / Path(DEFAULT_INDEX + ".faiss")):
+        loaded_index, db_entries = None, {}
+
+        if os.path.exists(index_path / Path(DEFAULT_INDEX + ".faiss")):  #
             logger.info(f"Loading index from {index_path}")
-            local_index = FAISS.load_local(
+            loaded_index = FAISS.load_local(
                 folder_path=str(index_path), embeddings=embedding_model, allow_dangerous_deserialization=True
-            )  # Ensures we trust the index source
+            )  # ensures we trust the index source
         else:
             logger.info(f"No local index found in {index_path / Path(DEFAULT_INDEX + '.faiss')}")
+
         if os.path.exists(index_path / Path(DATASET_LIST)):  # list of datasets in the index
             with open(index_path / Path(DATASET_LIST), "r") as f:
-                dataset_list = json.load(f)
-        if local_index is not None and len(dataset_list) == 0:
+                db_entries = json.load(f)
+
+        if loaded_index is not None and len(db_entries) == 0:
             logger.warning("Unknown datasets in the database, will not be able to track them going forward")
-        return index_path, local_index, dataset_list
+
+        return index_path, loaded_index, db_entries
 
     def _initialize_llm(self, model_name):
         """
@@ -162,7 +166,7 @@ class LlmRag:
         ds = load_dataset(path=huggingface_dataset, split=split, num_proc=8)
         if column not in ds[0]:
             return f"Column `{column}` not in `{huggingface_dataset}`, valid columns are {ds[0].keys()}"
-        loaded_ds = [Document(page_content=doc[column], title=huggingface_dataset) for doc in ds]
+        loaded_ds = [Document(page_content=doc[column], metadata={"title": huggingface_dataset}) for doc in ds]
         self.merge_to_db(huggingface_dataset, ds.dataset_size, loaded_ds)
 
     def merge_to_db(self, data_name: str, data_size: float, data: List[Document]):
@@ -173,6 +177,7 @@ class LlmRag:
         :param data_size: The size of the data in bytes
         :param data: The data as a list of Langchain Document(s)
         """
+        logger.info(f"Merging {data_name=} {data_size=} into the database")
         docs_processed = self.split_documents(chunk_size=512, documents=data, tokenizer_name=self.embedding_model_name)
 
         logger.info(f"Creating vector store of {data_name}")
@@ -233,7 +238,10 @@ class LlmRag:
                 context += "\nExtracted documents:\n"
                 for i, doc in enumerate(relevant_docs):
                     if i < num_docs_final:
-                        context += f"\n:::Document {doc.title}:::\n{doc.page_content}"
+                        if hasattr(doc, 'metadata') and "title" in doc.metadata:
+                            context += f"\n:::Document name: {doc.metadata["title"]}:::\n{doc.page_content}"
+                        else:
+                            context += f"\n{doc.page_content}"
                     else:
                         break
 

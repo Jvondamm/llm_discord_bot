@@ -20,7 +20,13 @@
   </ol>
 </details>
 
+
 # Llm Discord bot w/RAG
+<div align="left">
+  <a>
+    <img src="images/rag_demo.png" alt="Help">
+  </a>
+</div>
 
 There are plenty of Discord chatbots that use a Llm as their backend. However, I wasn't able to find any that ran everything locally and privately, and
 couldn't find one where I could upload my own documents for processing.
@@ -43,7 +49,7 @@ Run the bot with `ldbot`
 - Use `/help` to see a list of all available slash commands:
 <div align="left">
   <a>
-    <img src="images/llm_disc_ex.png" alt="Help">
+    <img src="images/help.png" alt="Help">
   </a>
 </div>
 
