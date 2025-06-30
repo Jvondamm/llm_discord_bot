@@ -9,7 +9,7 @@ class General(commands.Cog, name="general"):
     def __init__(self, bot) -> None:
         self.bot = bot
 
-    @commands.hybrid_command(name="help", description="List all loaded commands.")
+    @commands.hybrid_command(name="help", description="List all loaded commands")
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
     async def help(self, context: Context) -> None:
         """
@@ -33,12 +33,12 @@ class General(commands.Cog, name="general"):
 
     @commands.hybrid_command(
         name="botinfo",
-        description="Get bot configuration, llm models, owner, etc...",
+        description="Get some information about the bot",
     )
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
     async def info(self, context: Context) -> None:
         """
-        Get bot configuration, llm models, owner, etc...
+        Get bot configuration, llm models, owner, etc
 
         :param context: command context
         """
@@ -58,11 +58,11 @@ class General(commands.Cog, name="general"):
         embed.set_footer(text=f"Requested by: {context.author}")
         await context.send(embed=embed)
 
-    @commands.hybrid_command(name="ping", description="Check if bot is online and see it's latency if so")
+    @commands.hybrid_command(name="ping", description="Check if the bot is online")
     @app_commands.guilds(Object(id=os.getenv("DISCORD_GUILD_ID")))
     async def ping(self, context: Context) -> None:
         """
-        See if bot is online and it's latency
+        Check if the bot is online
 
         :param context: command context
         """

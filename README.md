@@ -1,28 +1,10 @@
 <a id="readme-top"></a>
 
-
-<!-- PROJECT SHIELDS -->
-<!--
-*** I'm using markdown "reference style" links for readability.
-*** Reference links are enclosed in brackets [ ] instead of parentheses ( ).
-*** See the bottom of this document for the declaration of the reference variables
-*** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
-*** https://www.markdownguide.org/basic-syntax/#reference-style-links
--->
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![project_license][license-shield]][license-url]
-
-
 <!-- TABLE OF CONTENTS -->
 <details>
   <summary>Table of Contents</summary>
   <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
-    </li>
+    <li><a href="#usage">Usage</a></li>
     <li>
       <a href="#getting-started">Getting Started</a>
       <ul>
@@ -31,8 +13,6 @@
         <li><a href="#configuration">Configuration</a></li>
       </ul>
     </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
@@ -40,24 +20,32 @@
   </ol>
 </details>
 
-<!-- ABOUT THE PROJECT -->
-## About The Project
-
-[![Product Name Screen Shot][product-screenshot]](https://example.com)
+# Llm Discord bot w/RAG
 
 There are plenty of Discord chatbots that use a Llm as their backend. However, I wasn't able to find any that ran everything locally and privately, and
 couldn't find one where I could upload my own documents for processing.
 
 This bot is a proof-of-concept project that a PC with average specs can run a locally hosted llm and a database for RAG in realtime.
 
-
-Features:
 - Runs any Huggingface model locally 
 - Load Huggingface datasets for RAG
 - Loads text and PDFs for RAG
 
+<!-- USAGE EXAMPLES -->
+## Usage
+Run the bot with `ldbot`
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+#### General functionality:
+
+- Chat with the bot by `@`ing it.
+- Upload a document while `@`ing the bot for it to process it
+- Use `/help` to see a list of all available slash commands:
+<div align="left">
+  <a>
+    <img src="images/llm_disc_ex.png" alt="Help">
+  </a>
+</div>
+
 
 <!-- GETTING STARTED -->
 ## Getting Started
@@ -97,28 +85,17 @@ Optionally takes:
 These can be added to your `$PATH`, or more simply stored in a `.env` file like the example in the repo. 
 The file can reside in any parent or child directory of the installation directory.
 
-<!-- USAGE EXAMPLES -->
-## Usage
-Run the bot with:
+
+
+<!-- CONTRIBUTING -->
+### Contributing
+Any contributions you make are **greatly appreciated**.
+
+If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
+
+Running from source:
 ```commandline
-ldbot
-```
-
-
-
----
-
-### Developing
-Contributions are welcome!
-
-```commandline
-git clone https://github.com/Jvondamm/llm_discord_bot
-cd llm_discord_bot
 uv run -m llm_discord bot
-```
-To install the optional dependencies
-```commandline
-uv pip install [dev]
 ```
 
 Before submitting a PR: 
@@ -131,3 +108,28 @@ Before submitting a PR:
     ```commandline
     uv build
     ```
+
+<!-- LICENSE -->
+## License
+
+Distributed under the MIT License. See `LICENSE.md` for more information.
+
+
+
+
+<!-- CONTACT -->
+## Contact
+
+Joshua von Damm - jvondamm@gmail.com 
+
+Project Link: [https://github.com/Jvondamm/llm_discord_bot](https://github.com/Jvondamm/llm_discord_bot)
+
+
+
+
+<!-- ACKNOWLEDGMENTS -->
+## Acknowledgments
+- Discord Bot Template: [https://github.com/kkrypt0nn/Python-Discord-Bot-Template](https://github.com/kkrypt0nn/Python-Discord-Bot-Template)
+- Huggingface RAG tutorial: [https://huggingface.co/learn/cookbook/en/advanced_rag](https://huggingface.co/learn/cookbook/en/advanced_rag)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
