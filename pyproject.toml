@@ -32,13 +32,9 @@ dependencies = [
     "transformers>=4.53.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "pre-commit",
-    "ruff",
-    "uv",
-    "fabric",
-    "hatch"
+    "ruff>=0.12.1",
 ]
 
 [project.scripts]
@@ -68,5 +64,4 @@ exclude = [
     "bot.env",
     "config.json"
 ]
-
 
