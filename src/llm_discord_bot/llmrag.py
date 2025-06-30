@@ -76,7 +76,7 @@ class LlmRag:
             with open(index_path / Path(DATASET_LIST), "r") as f:
                 dataset_list = json.load(f)
         if local_index is not None and len(dataset_list) == 0:
-            logger.warning(f"Unknown datasets in the database, will not be able to track them going forward")
+            logger.warning("Unknown datasets in the database, will not be able to track them going forward")
         return index_path, local_index, dataset_list
 
     def _initialize_llm(self, model_name):
@@ -137,7 +137,7 @@ class LlmRag:
             separators=MARKDOWN_SEPARATORS,
         )
 
-        logger.info(f"Processing docs in knowledge base...")
+        logger.info("Processing docs in knowledge base...")
         docs_processed = text_splitter.split_documents(documents)
 
         # Remove duplicates
@@ -225,7 +225,7 @@ class LlmRag:
                 logger.error("Did not provide any datasets to initialize local index")
                 return "Couldn't reply with RAG: Database is empty.\nPopulate the database with Huggingface datasets or upload documents", None
             if not query:
-                logger.warning(f"Empty query, cannot query database")
+                logger.warning("Empty query, cannot query database")
             else:
                 logger.info(f"Retrieving documents using {query=}\n")
                 relevant_docs = self.loaded_index.similarity_search(query=query, k=num_retrieved_docs)

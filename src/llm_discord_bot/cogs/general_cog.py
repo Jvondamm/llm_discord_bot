@@ -52,7 +52,7 @@ class General(commands.Cog, name="general"):
         embed.add_field(name="Python Version:", value=f"{platform.python_version()}", inline=True)
         embed.add_field(
             name="Prefix:",
-            value=f"/ (slash commands)",
+            value="/ (slash commands)",
             inline=False,
         )
         embed.set_footer(text=f"Requested by: {context.author}")

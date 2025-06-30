@@ -6,7 +6,6 @@ from huggingface_hub import login
 
 
 def main():
-
     # load environment variables
     load_dotenv()
     config_file = os.getenv("CONFIG_FILE")
