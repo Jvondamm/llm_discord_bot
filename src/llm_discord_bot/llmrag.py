@@ -71,7 +71,7 @@ class LlmRag:
                 folder_path=str(index_path), embeddings=embedding_model, allow_dangerous_deserialization=True
             )  # Ensures we trust the index source
         else:
-            logger.warning(f"No local index found in {index_path / Path(DEFAULT_INDEX + '.faiss')}")
+            logger.info(f"No local index found in {index_path / Path(DEFAULT_INDEX + '.faiss')}")
         if os.path.exists(index_path / Path(DATASET_LIST)):  # list of datasets in the index
             with open(index_path / Path(DATASET_LIST), "r") as f:
                 dataset_list = json.load(f)
