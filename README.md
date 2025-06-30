@@ -22,7 +22,7 @@
 
 
 # Llm Discord bot w/RAG
-<div align="left">
+<div align="center">
   <a>
     <img src="images/rag_demo.png" alt="RAG Demo">
   </a>
@@ -48,7 +48,7 @@ Run the bot with `ldbot`
 - Chat with the bot by `@`ing it.
 - Upload a document while `@`ing the bot for it to process it
 - Use `/help` to see a list of all available slash commands:
-<div align="left">
+<div align="center">
   <a>
     <img src="images/help.png" alt="Help">
   </a>
