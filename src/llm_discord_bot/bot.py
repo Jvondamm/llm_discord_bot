@@ -158,10 +158,12 @@ class Bot(commands.Bot):
                     try:
                         await attachment.save(fp=filepath)
                         loader = PyPDFLoader(filepath)
-                        # documents = loader.load()
+                        docs = await loader.aload()
+                        for doc in docs:
+                            doc.metadata = {"title": attachment.filename}
                         # documents = [doc.metadata = {"title": attachment.filename} for doc in documents]
                         # self.llm.merge_to_db(attachment.filename, attachment.size, loader.load())
-                        self.llm.merge_to_db(attachment.filename, attachment.size, loader.aload())
+                        self.llm.merge_to_db(attachment.filename, attachment.size, docs)
                     except Exception as e:
                         logger.error(f"Parsing {attachment.filename} resulted in {e}")
                         await message.channel.send(f"I had an error when trying the read the PDF: {attachment.filename}; {e}")
