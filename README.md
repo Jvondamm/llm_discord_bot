@@ -78,22 +78,20 @@ pip install llm_discord_bot-x.x.x.whl
 
 
 ### Configuration
-Requires: 
-- [Huggingface User Access Token](https://huggingface.co/login?next=%2Fsettings%2Ftoken) to access Huggingface models
-- [Discord Bot Token](https://www.writebots.com/discord-bot-token/) to authenticate the bot
-- [Discord Guild (Server) ID](https://cybrancee.com/learn/knowledge-base/how-to-find-a-discord-guild-id/) that the bot will join 
+Requires environment variables: 
+- [HUGGINGFACE_TOKEN](https://huggingface.co/login?next=%2Fsettings%2Ftoken) - to access Huggingface models
+- [DISCORD_TOKEN](https://www.writebots.com/discord-bot-token/) - Bot token for authentication
+- [DISCORD_GUILD_ID](https://cybrancee.com/learn/knowledge-base/how-to-find-a-discord-guild-id/) - Discord server that the bot will join 
 
 Optionally takes:
 
-- [Huggingface Model Path](https://huggingface.co/models) for the model that will be used, defaults to `meta-llama/Llama-3.2-3B-Instruct`
-- Index (Database) Path for storing documents for RAG, defaults to `/home/index`
-- Llm Config File Path to set the system prompt, temperature, and chat history, defaults are in the `config.json`
+- [MODEL](https://huggingface.co/models) - Huggingface model used for chatting, defaults to `meta-llama/Llama-3.2-3B-Instruct`
+- INDEX_PATH - Database directory for storing RAG documents, defaults to `/userhome/index/` 
+- CONFIG_FILE - Path to a `config.json` to set the system prompt, temperature, and chat history length, defaults are in the repos `config.json`
 
-
-These can be added to your `$PATH`, or more simply stored in a `.env` file like the example in the repo. 
+These can be added to your `$PATH`, or more simply stored in a `.env` file.
+See `example.env` for what it should look like.
 The file can reside in any parent or child directory of the installation directory.
-
-
 
 <!-- CONTRIBUTING -->
 ### Contributing
