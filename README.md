@@ -1,3 +1,5 @@
+# Local large language model discord bot + RAG
+
 ### Installation
 Download the .whl file from the [releases](https://github.com/Jvondamm/llm_discord_bot/releases), 
 then install with uv (recommended, it's just [faster than pip](https://docs.astral.sh/uv/#:~:text=%E2%9A%A1%EF%B8%8F%2010%2D100x%20faster%20than%20pip)):
