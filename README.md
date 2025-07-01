@@ -29,7 +29,12 @@
 </div>
 
 There are plenty of Discord chatbots that use a Llm as their backend. However, I wasn't able to find any that ran everything locally and privately, and
-couldn't find one where I could upload my own documents for processing.
+couldn't find one where I could upload my own documents for RAG. 
+
+RAG (Retrieval Augmented Generation) simply put is where the user's query is first used to *retrieve* information from a database, then given to the model along with the query
+to *generate* a response. This allows users to provide a model with data beyond it's training data, and for user-specific information.
+
+See an [article](https://research.ibm.com/blog/retrieval-augmented-generation-RAG) by IBM for a great explanation of RAG.
 
 This bot is a proof-of-concept project that a PC with average specs can run a locally hosted llm and a database for RAG in realtime.
 
